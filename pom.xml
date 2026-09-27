@@ -5,7 +5,7 @@
     <parent>
         <groupId>dev.langchain4j</groupId>
         <artifactId>langchain4j-parent</artifactId>
-        <version>1.19.0-beta29-SNAPSHOT</version>
+        <version>1.21.0-beta31-SNAPSHOT</version>
         <relativePath></relativePath>
     </parent>
 
@@ -62,7 +62,9 @@
         <module>embedding-stores/langchain4j-community-oceanbase</module>
         <module>embedding-stores/langchain4j-community-jvector</module>
         <module>embedding-stores/langchain4j-community-s3-vectors</module>
+        <module>embedding-stores/langchain4j-community-dynamodb</module>
         <module>embedding-stores/langchain4j-community-valkey</module>
+        <module>embedding-stores/langchain4j-community-lancedb</module>
 
         <!-- Integration of chat memory stores -->
         <module>chat-memory-stores/langchain4j-community-hazelcast</module>
@@ -100,8 +102,10 @@
 
         <!-- Tool integrations -->
         <module>tools/langchain4j-community-tool-jira</module>
+        <module>tools/langchain4j-community-tool-xquik</module>
         <module>tools/langchain4j-community-tool-web-scraper</module>
         <module>tools/langchain4j-community-tool-browser-use</module>
+        <module>tools/langchain4j-community-tool-live-tennis</module>
 
         <!-- Spring Boot Starters -->
         <module>spring-boot-starters</module>
@@ -117,10 +121,11 @@
 
     <properties>
         <gib.disable>true</gib.disable>
-        <langchain4j.core.version>1.19.0-SNAPSHOT</langchain4j.core.version>
-        <langchain4j.version>1.19.0-SNAPSHOT</langchain4j.version>
-        <langchain4j.http-client-jdk.version>1.19.0-SNAPSHOT</langchain4j.http-client-jdk.version>
-        <langchain4j.open-ai.version>1.19.0-SNAPSHOT</langchain4j.open-ai.version>
+        <langchain4j.core.version>1.21.0-SNAPSHOT</langchain4j.core.version>
+        <langchain4j.version>1.21.0-SNAPSHOT</langchain4j.version>
+        <langchain4j.http-client-jdk.version>1.21.0-SNAPSHOT</langchain4j.http-client-jdk.version>
+        <langchain4j.reactive-streaming.version>1.21.0-beta31-SNAPSHOT</langchain4j.reactive-streaming.version>
+        <langchain4j.open-ai.version>1.21.0-SNAPSHOT</langchain4j.open-ai.version>
         <project.build.outputTimestamp>2026-04-30T10:00:00Z</project.build.outputTimestamp>
     </properties>
 
@@ -352,7 +357,7 @@
                     <plugin>
                         <groupId>org.openrewrite.maven</groupId>
                         <artifactId>rewrite-maven-plugin</artifactId>
-                        <version>6.28.1</version>
+                        <version>6.46.1</version>
                         <configuration>
                             <activeRecipes>
                                 <!--<recipe>org.openrewrite.java.OrderImports</recipe>-->
@@ -365,12 +370,12 @@
                             <dependency>
                                 <groupId>org.openrewrite.recipe</groupId>
                                 <artifactId>rewrite-testing-frameworks</artifactId>
-                                <version>3.25.0</version>
+                                <version>3.44.0</version>
                             </dependency>
                             <dependency>
                                 <groupId>org.openrewrite.recipe</groupId>
                                 <artifactId>rewrite-migrate-java</artifactId>
-                                <version>3.25.0</version>
+                                <version>3.42.1</version>
                             </dependency>
                         </dependencies>
                     </plugin>

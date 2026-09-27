@@ -4,7 +4,7 @@
     <parent>
         <groupId>dev.langchain4j</groupId>
         <artifactId>langchain4j-community-spring-boot-starters</artifactId>
-        <version>1.19.0-beta29-SNAPSHOT</version>
+        <version>1.21.0-beta31-SNAPSHOT</version>
     </parent>
 
     <artifactId>langchain4j-community-oceanbase-spring-boot-starter</artifactId>
@@ -12,7 +12,7 @@
     <name>LangChain4j :: Community :: Spring Boot starter :: OceanBase</name>
 
     <properties>
-        <oceanbase-client.version>2.4.18</oceanbase-client.version>
+        <oceanbase-client.version>2.4.19</oceanbase-client.version>
     </properties>
 
     <dependencies>
