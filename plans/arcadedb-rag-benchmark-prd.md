@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | Draft — requirements agreed, not yet implemented |
-| Date | 2026-09-27 |
+| Date | 2026-09-27 (amended 2026-09-28 — see §5.1) |
 | Owner | odysseas |
 | Scope | `embedding-stores/langchain4j-community-arcadedb` + new `benchmarks/langchain4j-community-rag-benchmark` module |
 | Companion | [`arcadedb-rag-benchmark-handoff.md`](arcadedb-rag-benchmark-handoff.md) (implementation handoff) |
@@ -60,6 +60,14 @@ Code review of the current store also shows it cannot be meaningfully benchmarke
 | D18 | No gate; human decision |
 | D19 | Run profiles `smoke` / `canonical` / `extended`; canonical ≤ ~8 h on reference machine |
 
+### 5.1 Amendments (2026-09-28)
+
+| # | Amendment | Affects |
+|---|---|---|
+| A1 | **Full tier deferred.** Until every other work item is complete, runs use only the `smoke` and `standard` tiers. All `full`-tier work (embedding the remaining ~1.68M passages, full-tier ground truth, the full-tier part of `canonical`, full-tier remote in `extended`, acceptance 2) is done last — see `issues/B22`. The embedding cache is built append-only, `standard` ids first, so extending it to `full` re-embeds nothing. | F7, F14, acceptance 2, 5 |
+| A2 | **Reference machine lowered** to ≥8 physical cores / ≥32 GB RAM (was ≥16 / ≥64 GB). | N2, R7, M7 |
+| A3 | **Development machine allowed.** Early implementation may happen on a lower-spec machine (N2a) before the reference machine is available; its results are development-only. | N2a |
+
 ## 6. Store improvement requirements (`ArcadeDBEmbeddingStore`)
 
 Each item is an independent PR against the ArcadeDB module. **Before any of them land, the benchmark records a baseline run of the unmodified store** (with whatever workarounds are needed to finish ingestion — see §9.2) so before/after deltas are measurable. All changes keep the existing public API and default behaviour; new capabilities are opt-in builder options.
@@ -96,7 +104,7 @@ Priority for benchmark viability: **S1, S2, S3, S4** are required before `standa
 ### 7.2 Embeddings
 
 - **F6.** Embed with LangChain4j in-process `bge-small-en-v1.5` (full precision, 384-d, normalized). Queries use the BGE query instruction prefix (`"Represent this sentence for searching relevant passages: "`); passages do not.
-- **F7.** Embed the `full` tier once; all tiers read from the same cache. Cache format: raw little-endian float32 matrix file + ordered id file + manifest (model id, dims, normalization, prefix, dataset version, checksum).
+- **F7.** Embed the `full` tier once; all tiers read from the same cache. *(Amended A1: cache built append-only, `standard` ids first; `full` extension deferred.)* Cache format: raw little-endian float32 matrix file + ordered id file + manifest (model id, dims, normalization, prefix, dataset version, checksum).
 - **F8.** Query embeddings cached the same way. Query-time embedding latency is measured separately and **never** included in store latency.
 - **F9.** Embedding is resumable (checkpointed) and parallel across cores.
 
@@ -132,7 +140,7 @@ Pinned canonical index configuration: `maxConnections=16`, `beamWidth=100`, `qua
 **Speed**
 - **M5.** Ingestion: vectors/s, total wall time, time until index is fully built and searchable, final on-disk size, peak heap / RSS.
 - **M6.** Single-client latency: p50/p95/p99/max per scenario, after warm-up; cold first-pass latency reported separately.
-- **M7.** Throughput: QPS and p99 at concurrency 1, 4, 16, 64.
+- **M7.** Throughput: QPS and p99 at concurrency 1, 4, 16, 64. On an 8-core reference machine, 16 and 64 clients mainly measure queueing/saturation behaviour; the report labels them as such.
 - **M8.** Recall-vs-latency curve: recall@10 vs p95 across the `efSearch` sweep.
 - **M9.** Query-embedding latency (reported separately, informational).
 
@@ -141,7 +149,7 @@ Pinned canonical index configuration: `maxConnections=16`, `beamWidth=100`, `qua
 - **F13.** One Maven property `arcadedb.version` selects both the ArcadeDB jars (embedded) and the Docker image tag `arcadedata/arcadedb:<version>` (remote). A compile failure against a version is recorded as a finding.
 - **F14.** Run profiles selected by one flag:
   - `smoke` (~15 min): smoke tier, embedded, `dense` (single efSearch) + `hybrid-asis`, 1 repetition.
-  - `canonical` (target ≤ ~8 h per version on the reference machine): standard tier in embedded **and** remote with pinned config — `dense` (with sweep), `lexical`, `hybrid-asis`, `hybrid-tuned`, `filtered` (embedded); plus full tier embedded — `dense` (single efSearch) and `hybrid-tuned`. 3 repetitions of query phases.
+  - `canonical` (target ≤ ~8 h per version on the reference machine; *amended A1: standard-tier part only until the full tier is added*): standard tier in embedded **and** remote with pinned config — `dense` (with sweep), `lexical`, `hybrid-asis`, `hybrid-tuned`, `filtered` (embedded); plus full tier embedded — `dense` (single efSearch) and `hybrid-tuned`. 3 repetitions of query phases.
   - `extended` (opt-in): canonical + `index-grid` + `hybrid-variants` + full tier remote + optional `mixed`.
 - **F15.** A loaded database is reused across all query scenarios for the same (tier, mode, version, index config); loads happen once per such tuple. Loaded databases may be cached between runs keyed by that tuple plus store commit.
 - **F16.** Warm-up pass over the query set before timed passes; each timed query phase repeated 3× (`standard`/`full`), 1× (`smoke`); report median and min/max spread.
@@ -159,7 +167,8 @@ Pinned canonical index configuration: `maxConnections=16`, `beamWidth=100`, `qua
 ## 8. Non-functional requirements
 
 - **N1. Reproducibility.** Same inputs (dataset version, seeds, embedding cache, config, ArcadeDB version, hardware) → accuracy metrics identical; latency within noise band.
-- **N2. Reference machine.** ≥16 physical cores, ≥64 GB RAM, local NVMe SSD, ≥200 GB free disk, Linux, Docker, JDK 21. Results record the actual machine; cross-machine comparisons are flagged in the report.
+- **N2. Reference machine.** ≥8 physical cores, ≥32 GB RAM, local NVMe SSD, ≥200 GB free disk, Linux, Docker, JDK 21. All published, baseline (before/after) and version-comparison numbers come from this machine. Results record the actual machine; cross-machine comparisons are flagged in the report.
+- **N2a. Development machine.** Lower-spec machine for early implementation while the reference machine is unavailable: ≥4 cores, ≥12 GB RAM, ≥20 GB free disk, Docker, JDK 21. Supports building the harness, store fixes and their ITs, and `smoke`-tier runs only. Its results are tagged `dev` in the JSON, used only to validate the pipeline, and never serve as a baseline or comparison input.
 - **N3. Isolation.** `-Xms = -Xmx`, fixed GC, GC logging on; no other heavy workload during runs.
 - **N4. Resumability.** Long phases (download, embedding, ground truth, ingestion) checkpoint and resume.
 - **N5. Build hygiene.** Benchmark module excluded from default reactor, not deployed/released, no new dependencies leaking into published modules.
@@ -186,15 +195,15 @@ Deep modules with narrow interfaces, so a second store could be added later with
 | R4. BM25 IDF per bucket in 26.7.2 skews lexical scoring | Record bucket count; note in report; compare with 26.8.1+. |
 | R5. Embedding 2.68M passages on CPU takes hours | One-time, checkpointed, cached; reused across all versions/runs. |
 | R6. Latency noise hides small differences | 3 repetitions, noise bands, pinned JVM/CPU (F16, F17, N3). |
-| R7. Memory: ~1.5 GB raw vectors/M plus heap copies during ingestion on 26.7.2 | Reference machine 64 GB; configurable heap; record peak heap. |
+| R7. Memory: ~1.5 GB raw vectors/M plus heap copies during ingestion on 26.7.2 | Reference machine ≥32 GB (plan 4–6 GB heap per ArcadeDB process per million vectors; full tier deferred, A1); configurable heap; record peak heap. |
 
 ## 10. Acceptance criteria
 
-1. `smoke` profile completes end-to-end in ≤ ~15 min on the reference machine and produces a valid JSON result.
-2. Dense nDCG@10 on the `full` tier with high `efSearch` is within ±1.5 pts of the published `bge-small-en-v1.5` BEIR NQ score (MTEB), validating embedding + metrics pipeline.
+1. `smoke` profile completes end-to-end in ≤ ~15 min on the reference machine (excluding the one-time embedding of the tier) and produces a valid JSON result.
+2. *(Deferred to the full tier, A1.)* Dense nDCG@10 on the `full` tier with high `efSearch` is within ±1.5 pts of the published `bge-small-en-v1.5` BEIR NQ score (MTEB), validating embedding + metrics pipeline.
 3. At maximum `efSearch`, dense ANN recall@10 ≥ 0.95 on `standard` (after S3/S4), validating ground truth and target wiring.
 4. Brute-force ground truth for a sample of queries matches an independent exact computation (e.g. an in-memory LangChain4j store on a 10k subset).
-5. `canonical` completes for ArcadeDB 26.7.2 and the latest release within ~8 h each on the reference machine, both modes.
+5. `canonical` completes for ArcadeDB 26.7.2 and the latest release within ~8 h each on the reference machine, both modes. *(A1: checked for the standard-only canonical first; re-checked when the full tier is added.)*
 6. `compare` produces a Markdown report with delta tables, noise bands and SVG charts from two canonical results.
 7. Baseline (unmodified store) run recorded and each of S1–S9 has a before/after measurement.
 8. Benchmark module does not build or deploy without `-Pbenchmarks`; `./mvnw -pl embedding-stores/langchain4j-community-arcadedb verify` unaffected.

@@ -10,7 +10,7 @@
 ## Scope
 Prepare the machine that produces all `standard` / `canonical` numbers (and later `full`, B22).
 
-- [ ] Linux, ≥16 physical cores, ≥64 GB RAM, local NVMe, ≥200 GB free.
+- [ ] Linux, ≥8 physical cores, ≥32 GB RAM, local NVMe, ≥200 GB free (PRD N2, amended A2).
 - [ ] JDK 21 + `./mvnw`; confirm `jdk21-modules` profile activates (ArcadeDB module builds).
 - [ ] Docker; pre-pull `arcadedata/arcadedb:26.7.2` and `arcadedata/arcadedb:26.9.1` (plus 26.8.1 if an intermediate point is wanted).
 - [ ] Outbound HTTPS to `huggingface.co` and Maven Central.
@@ -24,4 +24,4 @@ Prepare the machine that produces all `standard` / `canonical` numbers (and late
 - Both Docker images pulled; data dir exists and is writable.
 
 ## Notes
-Phase 1 (B01–B07) does not need this machine; it can be developed on the current 8-core / 46 GB box.
+Phase 1 (B01–B07), B08, B15 and the S-fix branches do not need this machine: they can be developed on a lower-spec development machine (PRD N2a: ≥4 cores, ≥12 GB RAM, ≥20 GB free), running `smoke` only, with results tagged `dev`. The 8-core / 46 GB box already meets N2 and can serve as the reference machine. B09, B10 and everything after that produces numbers must run on the reference machine.

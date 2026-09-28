@@ -10,7 +10,7 @@
 ## Scope
 - Runner: profile → list of (tier, mode, scenario, params); load once per (tier, mode, version, index config); warm-up pass; timed passes × repetitions; cold first-pass latency recorded separately.
 - `smoke` profile: smoke tier, embedded, `dense` (single efSearch — note: the unmodified store cannot pass efSearch, record "store default") + `hybrid-asis`, 1 repetition.
-- JSON result writer (F20): metrics per scenario/repetition, full config, seeds, environment (CPU model, cores, RAM, disk, OS, JDK, JVM flags, heap, Docker version), git commit of store and benchmark (+ dirty flag), dataset / embedding / ground-truth manifests.
+- JSON result writer (F20): metrics per scenario/repetition, full config, seeds, environment (CPU model, cores, RAM, disk, OS, JDK, JVM flags, heap, Docker version), git commit of store and benchmark (+ dirty flag), dataset / embedding / ground-truth manifests, and machine class `reference` | `dev` (PRD N2a; set explicitly by config, default `dev`).
 - Output dir `benchmarks/results/<yyyy-MM-dd>-<arcadedb-version>-<profile>/`.
 - JVM launch settings for runs: `-Xms=-Xmx`, fixed GC, GC logging (N3) — e.g. a wrapper script or exec plugin config.
 - Trivial report: single-run Markdown summary table from the JSON.

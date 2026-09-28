@@ -69,6 +69,7 @@ graph LR
   B16 --> B17
   S10 --> B17
   S7 & S8 --> B19 --> B16
+  B12 --> B19
   S6 --> B18 --> B20
   B13 --> S9
   B17 & B20 --> B22
@@ -80,6 +81,6 @@ graph LR
 2. **Remote baseline must exist before S2/S3 land.** Acceptance 7 needs before/after for S2 and S3, which are remote-only, but handoff §5 adds remote mode in step 5 (after S1–S4). Remote target (B08) is therefore moved before the baseline (B10), and the baseline covers remote at `smoke` tier (results will show S3's wrong top-k — that is the point).
 3. **Standard-tier embedding run can start right after B03** rather than after the whole smoke path; it is the longest pole (hours) and independent of the store. B09 is sequenced accordingly. (Full-tier embedding deferred to B22.)
 4. **Build wiring:** the ArcadeDB module is only in the reactor via the `jdk21-modules` profile (root `pom.xml:342-349`). The `benchmarks` profile must require JDK 21 as well, and overriding `arcadedb.version` must also rebuild the store module against that version (F13 compile-failure finding), not just swap the runtime jar.
-5. **Current machine** (this checkout) has 8 cores / 46 GB RAM — better than the dev box described in handoff §1, but below N2 (≥16 cores, ≥64 GB). Fine for Phase 1 and `smoke`; `standard`/`full`/`canonical` numbers must come from the reference machine.
+5. **Machines (amended 2026-09-28, PRD §5.1 A2/A3):** reference machine lowered to ≥8 cores / ≥32 GB, so the 8-core / 46 GB box qualifies. While no reference machine is available, early work (B01–B08, B15, S-fixes) may run on a lower-spec development machine (PRD N2a), `smoke` only, results tagged `dev` and never used as baseline or comparison input.
 6. **Embedding cache portability (N1):** if embeddings are computed on one machine and copied, accuracy stays identical; recomputing on another CPU may differ in the last float bits. Treat the cache as a checksummed artefact and copy it rather than regenerate.
 7. Minor: `searchEmbedded` is `public` (`ArcadeDBEmbeddingStore.java:526`), not private like the other pointers in handoff §7; the 2-arg ANN call is at `:542` as the PRD says. Other line pointers verified at `7de83f5`.

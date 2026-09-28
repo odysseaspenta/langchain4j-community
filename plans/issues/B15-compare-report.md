@@ -11,7 +11,7 @@
 - Input ≥2 result JSONs → Markdown report: delta tables per scenario/metric, dense vs lexical vs hybrid quality tables, recall-vs-latency SVG charts (hand-written SVG, no browser/JS), ingestion table.
 - Noise bands: a latency delta smaller than the repetition spread → "no significant change".
 - Warn-only thresholds (defaults: recall −1 pt, nDCG@10 −1 pt, p95 +10%, ingestion +10%), configurable; never fail the process.
-- Flag cross-machine comparisons (N2) and differing dataset/embedding/GT manifests.
+- Flag cross-machine comparisons (N2) and differing dataset/embedding/GT manifests; mark any `dev`-class input prominently as "development only — not comparable" (N2a).
 - Citation footer for BEIR/NQ (N6).
 
 ## Acceptance

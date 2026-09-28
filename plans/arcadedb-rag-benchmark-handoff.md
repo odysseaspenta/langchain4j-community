@@ -5,7 +5,8 @@ Read this first when picking the work up on the implementation machine (human or
 ## 1. Status as of 2026-09-27
 
 - Requirements agreed with the owner through a design interview; PRD written. **No code written yet.**
-- Research done on the dev box (7 cores / 13 GB RAM — too small for the real runs). Implementation and all `standard`/`full` runs happen on the more powerful reference machine (PRD N2).
+- Research done on the dev box (7 cores / 13 GB RAM — too small for the real runs). All `standard` runs, baselines and version comparisons happen on the reference machine (PRD N2: ≥8 cores / ≥32 GB).
+- **2026-09-28:** PRD broken into issues under [`issues/`](issues/README.md) (pushed to `origin/arcadedb-rag-benchmark`). Full tier deferred to the end (PRD §5.1 A1). The reference machine is not yet available, so early implementation may start on a lower-spec development machine (PRD N2a) — see §4.
 - Nothing has been pushed upstream. These documents live only on the fork branch (see §2).
 
 ## 2. Git / repository strategy (keep benchmark out of upstream)
@@ -27,7 +28,9 @@ Owner preferences recorded during the interview: ask clarifying questions **one 
 
 ## 4. Reference machine setup checklist
 
-- [ ] Linux, ≥16 physical cores, ≥64 GB RAM, local NVMe, ≥200 GB free (PRD N2)
+> **Development machine (PRD N2a)** — until the reference machine is available: ≥4 cores, ≥12 GB RAM, ≥20 GB free disk, Docker, JDK 21. Enough for B01–B08, B15, the S-fixes and their ITs, and `smoke` runs. Results from it are tagged `dev` and are never used as a baseline (B10) or in a comparison (B17). Keep the data directory off a nearly-full root disk.
+
+- [ ] Linux, ≥8 physical cores, ≥32 GB RAM, local NVMe, ≥200 GB free (PRD N2)
 - [ ] JDK 21 (ArcadeDB module sets `maven.compiler.source/target` 21), Maven via `./mvnw`
 - [ ] Docker; pre-pull `arcadedata/arcadedb:26.7.2` and `arcadedata/arcadedb:26.9.1` (tags verified to exist; 26.7.3 and 26.8.1 also exist)
 - [ ] Outbound HTTPS to `huggingface.co` (ungated, no token needed for BeIR/mteb NQ) and Maven Central
