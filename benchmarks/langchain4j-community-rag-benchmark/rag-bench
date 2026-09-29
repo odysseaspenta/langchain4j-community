@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Launches the benchmark with the JVM settings the PRD requires for measurements (N3):
 # pinned heap (-Xms = -Xmx), G1, and a GC log that is copied into the run's results directory.
-#   RAG_BENCH_HEAP  heap size (default 8g)       JAVA_HOME  JDK 21 (default: java on PATH)
+#   RAG_BENCH_HEAP         heap size (default 8g)
+#   RAG_BENCH_CLIENT_CPUS  pin the benchmark JVM to these CPUs with taskset, e.g. 0-3 (remote mode: the server
+#                          container then defaults to the remaining CPUs, PRD F17); default: not pinned
+#   JAVA_HOME              JDK 21 (default: java on PATH)
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 jar="$(ls "$here"/target/langchain4j-community-rag-benchmark-*.jar 2>/dev/null | head -1 || true)"
@@ -14,7 +17,11 @@ heap="${RAG_BENCH_HEAP:-8g}"
 gc_log="${TMPDIR:-/tmp}/rag-bench-gc-$$.log"
 # The run copies the GC log into its results directory; the temporary file is removed on exit.
 trap 'rm -f "$gc_log"' EXIT
-"$java" -Xms"$heap" -Xmx"$heap" -XX:+UseG1GC -XX:+AlwaysPreTouch \
+pin=()
+if [[ -n "${RAG_BENCH_CLIENT_CPUS:-}" ]]; then
+  pin=(taskset -c "$RAG_BENCH_CLIENT_CPUS")
+fi
+${pin[@]+"${pin[@]}"} "$java" -Xms"$heap" -Xmx"$heap" -XX:+UseG1GC -XX:+AlwaysPreTouch \
   -Xlog:gc*:file="$gc_log":time,uptime,level,tags \
   -Drag.bench.gcLog="$gc_log" \
   -jar "$jar" "$@"

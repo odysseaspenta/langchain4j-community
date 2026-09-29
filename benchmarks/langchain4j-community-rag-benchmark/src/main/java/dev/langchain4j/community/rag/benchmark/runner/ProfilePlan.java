@@ -30,4 +30,12 @@ public record ProfilePlan(
                         "The extended profile is not implemented yet; see plans/issues/B20-extended-profile.md");
         };
     }
+
+    /** The same plan with other deployment modes, e.g. {@code smoke} with remote added (B08). */
+    public ProfilePlan withModes(List<TargetMode> modes) {
+        if (modes.isEmpty()) {
+            throw new IllegalArgumentException("At least one mode is required");
+        }
+        return new ProfilePlan(profile, tiers, List.copyOf(modes), scenarios, k, repetitions);
+    }
 }

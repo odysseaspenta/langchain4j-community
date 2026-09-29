@@ -1,7 +1,10 @@
 package dev.langchain4j.community.rag.benchmark.report;
 
 import dev.langchain4j.community.rag.benchmark.targets.LoadStats;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Single-run Markdown summary of a {@link RunResult} (B07). Comparisons between runs are B15's {@code compare}.
@@ -63,8 +66,9 @@ public final class MarkdownSummary {
 
         md.append("\n## Load\n\n")
                 .append(
-                        "| Target | Tier | Loaded | Load s | Docs/s | Time to searchable s | Disk MiB | Peak heap MiB |\n")
-                .append("|---|---|---|---|---|---|---|---|\n");
+                        "| Target | Tier | Loaded | Load s | Docs/s | Time to searchable s | Disk MiB | Peak heap MiB"
+                                + " | Server peak MiB |\n")
+                .append("|---|---|---|---|---|---|---|---|---|\n");
         for (RunResult.TargetRun run : result.runs()) {
             LoadStats load = run.load();
             md.append("| ")
@@ -90,13 +94,42 @@ public final class MarkdownSummary {
                     .append(num(load.diskBytes() / 1048576.0, 0))
                     .append(" | ")
                     .append(num(load.peakHeapBytes() / 1048576.0, 0))
+                    .append(" | ")
+                    .append(load.serverPeakMemoryBytes() < 0 ? "–" : num(load.serverPeakMemoryBytes() / 1048576.0, 0))
                     .append(" |\n");
+        }
+        for (RunResult.TargetRun run : result.runs()) {
+            if (run.targetConfig().get("server") instanceof Map<?, ?> server) {
+                md.append("\n")
+                        .append(run.target())
+                        .append(" (")
+                        .append(run.tier())
+                        .append("): ")
+                        .append(server.get("image"))
+                        .append(", server CPUs ")
+                        .append(server.get("cpusetCpus"))
+                        .append(", heap ")
+                        .append(server.get("heap"))
+                        .append(", client CPUs ")
+                        .append(run.targetConfig().get("clientCpus"))
+                        .append(", query timeout ")
+                        .append(run.targetConfig().get("queryTimeoutMillis"))
+                        .append(" ms. Time to searchable = `REBUILD INDEX` (upper bound; embedded builds the graph"
+                                + " only).\n");
+            }
+            if (run.targetConfig().get("isolationWarnings") instanceof List<?> warnings && !warnings.isEmpty()) {
+                md.append("\n> **Isolation warning (")
+                        .append(run.target())
+                        .append(")**: ")
+                        .append(warnings.stream().map(String::valueOf).collect(Collectors.joining("; ")))
+                        .append("\n");
+            }
         }
 
         md.append("\n## Scenarios\n\n")
                 .append("| Tier | Target | Scenario | nDCG@10 | Recall@10 | Recall@100 | MRR@10 | ANN R@10 | ANN R@100"
-                        + " | p50 ms | p95 ms | p99 ms | Cold p50 ms | Failed | Empty | Short | efSearch |\n")
-                .append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n");
+                        + " | p50 ms | p95 ms | p99 ms | Cold p50 ms | Failed | Empty | Skipped | Short | efSearch |\n")
+                .append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n");
         for (RunResult.TargetRun run : result.runs()) {
             for (RunResult.ScenarioResult s : run.scenarios()) {
                 md.append("| ")
@@ -106,6 +139,7 @@ public final class MarkdownSummary {
                         .append(" | ")
                         .append(s.name())
                         .append(s.stable() ? "" : " ⚠ unstable")
+                        .append(s.aborted() == null ? "" : " ⚠ aborted")
                         .append(" | ")
                         .append(num(s.accuracy().ndcgAt10(), 4))
                         .append(" | ")
@@ -131,6 +165,8 @@ public final class MarkdownSummary {
                         .append(" | ")
                         .append(s.failures().empty())
                         .append(" | ")
+                        .append(s.failures().skipped())
+                        .append(" | ")
                         .append(num(s.shortfall() * 100, 1))
                         .append("%")
                         .append(" | ")
@@ -141,10 +177,32 @@ public final class MarkdownSummary {
                         .append(" |\n");
             }
         }
+        for (RunResult.TargetRun run : result.runs()) {
+            for (RunResult.ScenarioResult s : run.scenarios()) {
+                if (s.aborted() != null) {
+                    md.append("\n⚠ ")
+                            .append(run.target())
+                            .append(" / ")
+                            .append(s.name())
+                            .append(" aborted: ")
+                            .append(s.aborted())
+                            .append(". Skipped queries count as empty rankings; latency covers the queries run.")
+                            .append(s.failures().examples().isEmpty()
+                                    ? ""
+                                    : " First failure: `" + abbreviate(s.failures().examples().get(0)) + "`")
+                            .append("\n");
+                }
+            }
+        }
         md.append("\nLatency is the median across repetitions of each repetition's percentile; the cold pass runs"
                 + " first and doubles as warm-up. Full details: `result.json`.\n\n");
         md.append("Data: BEIR (Thakur et al., 2021), Natural Questions (Kwiatkowski et al., 2019), CC BY-SA.\n");
         return md.toString();
+    }
+
+    private static String abbreviate(String text) {
+        String line = text.replace('`', '\'').replace('\n', ' ');
+        return line.length() <= 200 ? line : line.substring(0, 200) + "…";
     }
 
     private static void row(StringBuilder md, String name, String value) {

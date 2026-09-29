@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -41,6 +42,11 @@ import org.slf4j.LoggerFactory;
  * Runs a {@link ProfilePlan}: one load per (tier, mode), then per scenario a cold pass over all test queries (which
  * also warms up) followed by the timed repetitions (PRD F14–F16). Accuracy comes from the first timed repetition;
  * every repetition's rankings are compared to detect non-deterministic results.
+ *
+ * <p>A pass is aborted when {@link Settings#failureStreakLimit()} consecutive queries fail or return nothing, or when
+ * it exceeds {@link Settings#passTimeCap()}; its remaining queries are skipped and count as empty rankings, and no
+ * further passes of that scenario run. This bounds scenarios the store cannot serve (e.g. remote {@code dense} on the
+ * unmodified store, where every query runs into the server timeout).
  */
 public final class Runner {
 
@@ -52,7 +58,23 @@ public final class Runner {
         BenchmarkTarget create(Tier tier, TargetMode mode) throws Exception;
     }
 
-    public record Settings(int loadBatchSize, Duration loadTimeCap, String machineClass) {}
+    /**
+     * @param failureStreakLimit abort a pass after this many consecutive failed or empty queries; 0 disables
+     * @param passTimeCap        abort a pass after this long; {@code null} for no cap
+     */
+    public record Settings(
+            int loadBatchSize,
+            Duration loadTimeCap,
+            String machineClass,
+            int failureStreakLimit,
+            Duration passTimeCap) {
+
+        public static final int DEFAULT_FAILURE_STREAK_LIMIT = 10;
+
+        public Settings(int loadBatchSize, Duration loadTimeCap, String machineClass) {
+            this(loadBatchSize, loadTimeCap, machineClass, DEFAULT_FAILURE_STREAK_LIMIT, null);
+        }
+    }
 
     private final BenchmarkConfig config;
     private final PreparedDataset dataset;
@@ -141,6 +163,10 @@ public final class Runner {
                         settings.loadTimeCap() == null
                                 ? null
                                 : settings.loadTimeCap().toString(),
+                        settings.failureStreakLimit(),
+                        settings.passTimeCap() == null
+                                ? null
+                                : settings.passTimeCap().toString(),
                         plan.tiers().stream().map(Tier::id).toList(),
                         plan.modes().stream().map(TargetMode::id).toList(),
                         plan.scenarios().stream().map(Scenario::name).toList()),
@@ -165,10 +191,17 @@ public final class Runner {
 
         Pass cold = pass(target, scenario, efSearch, plan.k(), queryIds, queryText, queryVectors);
         List<Pass> timed = new ArrayList<>();
-        for (int r = 0; r < plan.repetitions(); r++) {
-            timed.add(pass(target, scenario, efSearch, plan.k(), queryIds, queryText, queryVectors));
+        Pass last = cold;
+        for (int r = 0; r < plan.repetitions() && last.abortReason() == null; r++) {
+            last = pass(target, scenario, efSearch, plan.k(), queryIds, queryText, queryVectors);
+            timed.add(last);
         }
-        Pass reference = timed.get(0);
+        String aborted = last.abortReason();
+        if (aborted != null) {
+            log.warn("Scenario {} aborted ({}); {} queries skipped", scenario.name(), aborted, last.skipped());
+        }
+        // Accuracy from the first timed repetition; from the cold pass when that was aborted.
+        Pass reference = timed.isEmpty() ? cold : timed.get(0);
         boolean stable = timed.stream().allMatch(p -> p.rankings().equals(reference.rankings()));
 
         Map<String, List<String>> rankings = new LinkedHashMap<>();
@@ -211,10 +244,12 @@ public final class Runner {
 
         List<LatencyStats> repetitions =
                 timed.stream().map(p -> LatencyStats.ofNanos(p.nanos())).toList();
+        // Without a timed repetition (cold pass aborted) the spread falls back to the cold pass.
+        List<LatencyStats> spreadOf = repetitions.isEmpty() ? List.of(LatencyStats.ofNanos(cold.nanos())) : repetitions;
         RunResult.LatencySpread spread = new RunResult.LatencySpread(
-                Spread.of(repetitions.stream().mapToDouble(LatencyStats::p50).toArray()),
-                Spread.of(repetitions.stream().mapToDouble(LatencyStats::p95).toArray()),
-                Spread.of(repetitions.stream().mapToDouble(LatencyStats::p99).toArray()));
+                Spread.of(spreadOf.stream().mapToDouble(LatencyStats::p50).toArray()),
+                Spread.of(spreadOf.stream().mapToDouble(LatencyStats::p95).toArray()),
+                Spread.of(spreadOf.stream().mapToDouble(LatencyStats::p99).toArray()));
 
         return new RunResult.ScenarioResult(
                 scenario.name(),
@@ -225,16 +260,25 @@ public final class Runner {
                 new RunResult.Accuracy(ir.ndcgAt10(), ir.recallAt10(), ir.recallAt100(), ir.mrrAt10(), ir.queries()),
                 annRecall,
                 ResultCounts.shortfall(counts, plan.k()),
-                new RunResult.Failures(queryIds.size(), failed, empty, examples),
+                new RunResult.Failures(queryIds.size(), failed, empty, reference.skipped(), examples),
                 LatencyStats.ofNanos(cold.nanos()),
                 repetitions,
                 spread,
-                stable);
+                stable,
+                aborted);
     }
 
-    private record Pass(List<SearchResult> results, List<List<String>> rankings, long[] nanos) {}
+    /**
+     * @param results     one per query run (skipped queries have none)
+     * @param rankings    one per query; empty for skipped queries
+     * @param nanos       latency of each query run
+     * @param skipped     queries not run because the pass was aborted
+     * @param abortReason why the pass was aborted, or {@code null}
+     */
+    private record Pass(
+            List<SearchResult> results, List<List<String>> rankings, long[] nanos, int skipped, String abortReason) {}
 
-    private static Pass pass(
+    private Pass pass(
             BenchmarkTarget target,
             Scenario scenario,
             Integer efSearch,
@@ -247,7 +291,11 @@ public final class Runner {
         List<List<String>> rankings = new ArrayList<>(n);
         long[] nanos = new long[n];
         float[] vector = new float[queryVectors.dimension()];
-        for (int q = 0; q < n; q++) {
+        long passStart = System.nanoTime();
+        int streak = 0;
+        String abortReason = null;
+        int q = 0;
+        for (; q < n && abortReason == null; q++) {
             queryVectors.get(q, vector);
             SearchRequest request = new SearchRequest(
                     scenario.mode(),
@@ -261,8 +309,22 @@ public final class Runner {
             nanos[q] = System.nanoTime() - start;
             results.add(result);
             rankings.add(result.ids());
+
+            streak = result.failed() || result.ids().isEmpty() ? streak + 1 : 0;
+            int limit = settings.failureStreakLimit();
+            if (limit > 0 && streak >= limit && q + 1 < n) {
+                abortReason = streak + " consecutive failed or empty queries";
+            } else if (settings.passTimeCap() != null
+                    && q + 1 < n
+                    && System.nanoTime() - passStart > settings.passTimeCap().toNanos()) {
+                abortReason = "pass time cap " + settings.passTimeCap() + " reached";
+            }
         }
-        return new Pass(results, rankings, nanos);
+        int skipped = n - q;
+        for (int s = 0; s < skipped; s++) {
+            rankings.add(List.of());
+        }
+        return new Pass(results, rankings, Arrays.copyOf(nanos, q), skipped, abortReason);
     }
 
     private RunResult.Inputs inputs(ProfilePlan plan) throws IOException {

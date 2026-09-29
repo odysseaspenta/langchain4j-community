@@ -18,6 +18,8 @@ import dev.langchain4j.community.rag.benchmark.runner.TargetMode;
 import dev.langchain4j.community.rag.benchmark.targets.arcadedb.ArcadeDbSettings;
 import dev.langchain4j.community.rag.benchmark.targets.arcadedb.ArcadeDbTarget;
 import dev.langchain4j.community.rag.benchmark.targets.arcadedb.ArcadeDbVersion;
+import dev.langchain4j.community.rag.benchmark.targets.arcadedb.RemoteSettings;
+import dev.langchain4j.community.rag.benchmark.util.CpuSet;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
@@ -81,6 +83,48 @@ class RunCommand implements Callable<Integer> {
     @Option(names = "--keep-databases", description = "Keep the loaded databases instead of deleting them.")
     boolean keepDatabases;
 
+    @Option(
+            names = "--mode",
+            split = ",",
+            paramLabel = "<mode>",
+            description = "Deployment modes to run, overriding the profile's: embedded, remote"
+                    + " (e.g. --mode embedded,remote). Remote starts arcadedata/arcadedb:<version> in Docker.")
+    List<TargetMode> modes;
+
+    @Option(
+            names = "--server-cpus",
+            paramLabel = "<list>",
+            description = "Remote: CPUs to pin the server container to, e.g. 4-7 (default: the CPUs the client is"
+                    + " not pinned to, else the upper half).")
+    String serverCpus;
+
+    @Option(
+            names = "--server-heap",
+            defaultValue = RemoteSettings.DEFAULT_HEAP,
+            paramLabel = "<size>",
+            description = "Remote: server heap, -Xms = -Xmx (default: ${DEFAULT-VALUE}).")
+    String serverHeap;
+
+    @Option(
+            names = "--query-timeout-seconds",
+            paramLabel = "<seconds>",
+            description = "Remote: server-side timeout per query (default: 30).")
+    Integer queryTimeoutSeconds;
+
+    @Option(
+            names = "--failure-streak-limit",
+            defaultValue = "" + Runner.Settings.DEFAULT_FAILURE_STREAK_LIMIT,
+            paramLabel = "<n>",
+            description = "Abort a scenario after this many consecutive failed or empty queries; 0 disables"
+                    + " (default: ${DEFAULT-VALUE}).")
+    int failureStreakLimit;
+
+    @Option(
+            names = "--pass-time-cap-minutes",
+            paramLabel = "<minutes>",
+            description = "Abort a scenario pass after this many minutes; the remaining queries count as empty.")
+    Integer passTimeCapMinutes;
+
     @Override
     public Integer call() throws Exception {
         ProfilePlan plan;
@@ -89,6 +133,29 @@ class RunCommand implements Callable<Integer> {
         } catch (UnsupportedOperationException e) {
             spec.commandLine().getErr().println(e.getMessage());
             return EXIT_UNSUPPORTED;
+        }
+        if (modes != null) {
+            plan = plan.withModes(modes.stream().distinct().toList());
+        }
+        RemoteSettings remote = null;
+        if (plan.modes().contains(TargetMode.REMOTE)) {
+            CpuSet clientCpus = CpuSet.ofThisProcess();
+            CpuSet serverCpuSet = serverCpus != null
+                    ? CpuSet.parse(serverCpus)
+                    : RemoteSettings.defaultServerCpus(clientCpus, CpuSet.online());
+            if (serverCpuSet.overlaps(clientCpus)) {
+                spec.commandLine()
+                        .getErr()
+                        .println("Warning: server CPUs " + serverCpuSet + " overlap client CPUs " + clientCpus
+                                + "; pin the client with RAG_BENCH_CLIENT_CPUS (PRD F17)");
+            }
+            remote = new RemoteSettings(
+                    ArcadeDbVersion.dockerImage(),
+                    serverCpuSet,
+                    serverHeap,
+                    queryTimeoutSeconds == null
+                            ? RemoteSettings.DEFAULT_QUERY_TIMEOUT
+                            : Duration.ofSeconds(queryTimeoutSeconds));
         }
         BenchmarkConfig config = cli.config();
         int threadCount = threads != null ? threads : Runtime.getRuntime().availableProcessors();
@@ -110,20 +177,21 @@ class RunCommand implements Callable<Integer> {
         String version = ArcadeDbVersion.onClasspath();
         Path databases = config.dataDir().resolve("databases").resolve("arcadedb-" + version);
         List<Path> created = new ArrayList<>();
+        ArcadeDbSettings index = ArcadeDbSettings.pinned(EmbeddingModelSpec.BGE_SMALL_EN_V15.dimension());
+        RemoteSettings remoteSettings = remote;
         Runner.TargetFactory factory = (Tier tier, TargetMode mode) -> {
-            if (mode != TargetMode.EMBEDDED) {
-                throw new UnsupportedOperationException(
-                        "Remote mode is not implemented yet; see plans/issues/B08-remote-target.md");
-            }
             Path dir = databases.resolve(tier.id() + "-" + mode.id());
             created.add(dir);
-            return ArcadeDbTarget.embedded(
-                    dir, ArcadeDbSettings.pinned(EmbeddingModelSpec.BGE_SMALL_EN_V15.dimension()));
+            return mode == TargetMode.REMOTE
+                    ? ArcadeDbTarget.remote(dir, index, remoteSettings)
+                    : ArcadeDbTarget.embedded(dir, index);
         };
         Runner.Settings settings = new Runner.Settings(
                 loadBatchSize,
                 loadTimeCapMinutes == null ? null : Duration.ofMinutes(loadTimeCapMinutes),
-                config.machineClass());
+                config.machineClass(),
+                failureStreakLimit,
+                passTimeCapMinutes == null ? null : Duration.ofMinutes(passTimeCapMinutes));
 
         RunResult result;
         try {

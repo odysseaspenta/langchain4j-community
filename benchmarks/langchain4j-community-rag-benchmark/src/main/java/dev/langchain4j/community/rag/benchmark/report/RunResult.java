@@ -31,6 +31,8 @@ public record RunResult(
             int repetitions,
             int loadBatchSize,
             String loadTimeCap,
+            int failureStreakLimit,
+            String passTimeCap,
             List<String> tiers,
             List<String> modes,
             List<String> scenarios) {}
@@ -65,6 +67,8 @@ public record RunResult(
      * @param efSearchApplied   whether the requested efSearch reached the store (false: store default was used)
      * @param annRecall         ANN recall@10 / @100 vs exact neighbours ({@code null} for hybrid)
      * @param stable            whether every repetition returned exactly the same rankings
+     * @param aborted           why a pass was cut short (failure streak or pass time cap), or {@code null}; skipped
+     *                          queries count as empty rankings in the accuracy metrics
      */
     public record ScenarioResult(
             String name,
@@ -79,13 +83,17 @@ public record RunResult(
             LatencyStats cold,
             List<LatencyStats> repetitions,
             LatencySpread latencySpread,
-            boolean stable) {}
+            boolean stable,
+            String aborted) {}
 
     public record Accuracy(double ndcgAt10, double recallAt10, double recallAt100, double mrrAt10, int queries) {}
 
     public record AnnRecall(double at10, double at100) {}
 
-    public record Failures(int queries, int failed, int empty, List<String> examples) {}
+    /**
+     * @param skipped queries not run because the pass was aborted
+     */
+    public record Failures(int queries, int failed, int empty, int skipped, List<String> examples) {}
 
     public record LatencySpread(Spread p50, Spread p95, Spread p99) {}
 }

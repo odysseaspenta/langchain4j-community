@@ -34,6 +34,26 @@ Use the launcher, which applies the PRD's JVM isolation settings (pinned heap, G
 RAG_BENCH_HEAP=8g benchmarks/langchain4j-community-rag-benchmark/rag-bench --machine-class reference run --profile smoke
 ```
 
+### Remote mode (Docker)
+
+`--mode embedded,remote` (or `--mode remote`) overrides the profile's deployment modes; `smoke` is embedded-only by default. Remote mode starts `arcadedata/arcadedb:<version>` with the `docker` CLI, once per (tier, load), and removes the container afterwards:
+
+```shell
+RAG_BENCH_CLIENT_CPUS=0-3 RAG_BENCH_HEAP=8g benchmarks/langchain4j-community-rag-benchmark/rag-bench \
+  run --profile smoke --mode embedded,remote --server-cpus 4-7 --server-heap 8g
+```
+
+- **CPU pinning (PRD F17):** the container gets `--cpuset-cpus` from `--server-cpus`; by default the CPUs the client is not pinned to, or the upper half when the client is unpinned. `RAG_BENCH_CLIENT_CPUS` makes the launcher pin the client JVM with `taskset`. Overlap is warned about and recorded.
+- **Server JVM:** `--server-heap` (default 4g, `-Xms = -Xmx`), ZGC (the image default, made explicit), GC log in the server directory. Client heap: `RAG_BENCH_HEAP`.
+- **Server directory:** `<dataDir>/databases/arcadedb-<version>/<tier>-remote/` holds `databases/`, `log/` (server log, `gc.log`) and the logging configuration (per-search INFO off, F18). Deleted after the run unless `--keep-databases`. The container runs as uid 1000; the host user should be uid 1000 or able to delete such files.
+- **Time to searchable:** `REBUILD INDEX` on the vector index after loading (harness SQL, not via the store API): an upper bound, since it also re-reads every record. The server exposes no build state.
+- **Query timeout:** after loading, `ALTER DATABASE arcadedb.command.timeout` (`--query-timeout-seconds`, default 30) so a runaway query is killed on the server instead of stealing CPU from the next ones.
+- **Stored text:** line breaks become spaces, because the unmodified store's remote `addAll` cannot insert them (store bug, noted as S11). Embeddings are unchanged; full-text tokenisation is the same.
+
+### Aborted scenarios
+
+A pass stops after `--failure-streak-limit` (default 10) consecutive failed or empty queries, or after `--pass-time-cap-minutes`. Remaining queries are skipped, count as empty rankings in the accuracy metrics, and the scenario is marked `aborted` in `result.json` and the report. This keeps remote `dense` on the unmodified store (every query runs into the timeout, S3) from running for days.
+
 Results land in `benchmarks/results/<yyyy-MM-dd>-arcadedb-<version>-<profile>/` (`result.json`, `report.md`, `gc.log`). Runs on anything but the reference machine should keep the default `--machine-class dev`; their reports say they are not comparable.
 
 ## Configuration
@@ -57,7 +77,7 @@ Raw results under `benchmarks/results/` are git-ignored; only `report.md` and `*
 | `prepare [--dataset nq]` | Downloads and verifies the dataset (resumable), builds tier id lists |
 | `embed [--tier t \| --rows n] [--threads n] [--verify n]` | Embeds passages (priority order, resumable) and test queries into the embedding cache |
 | `ground-truth [--tier smoke,standard,...] [--k 100]` | Exact top-k per query and tier, unfiltered and `bucket < 1/10/50`, in one pass |
-| `run --profile smoke [--load-time-cap-minutes n] [--keep-databases]` | Full path: prepare → embed → ground truth → load → scenarios → `result.json` + `report.md` (canonical/extended: B16/B20) |
+| `run --profile smoke [--mode embedded,remote] [--load-time-cap-minutes n] [--keep-databases]` | Full path: prepare → embed → ground truth → load → scenarios → `result.json` + `report.md` (canonical/extended: B16/B20) |
 | `compare <result.json>...` | Pending — B15 |
 
 Pending commands exit with code 3 and name their issue.

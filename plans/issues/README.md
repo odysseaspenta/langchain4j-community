@@ -25,7 +25,7 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [B05](B05-metrics.md) | Metrics library (IR, ANN recall, latency stats) | 1 Smoke path | B01 | ☐☑ |
 | [B06](B06-arcadedb-target-embedded.md) | `BenchmarkTarget` + embedded `ArcadeDbTarget` | 1 Smoke path | B01 | ☐◐ code done; smoke-tier load deferred |
 | [B07](B07-runner-smoke-profile-json.md) | Runner, `smoke` profile, JSON results, trivial report | 1 Smoke path | B02–B06 | ☐◐ code done; real smoke run deferred |
-| [B08](B08-remote-target.md) | Remote (Docker) `ArcadeDbTarget` | 2 Scale-up | B06, B07 | ☐ |
+| [B08](B08-remote-target.md) | Remote (Docker) `ArcadeDbTarget` | 2 Scale-up | B06, B07 | ☐◐ code done; real smoke run deferred |
 | [B09](B09-standard-embedding-and-ground-truth.md) | Standard-tier embedding cache + ground truth (run) | 2 Scale-up | B00, B03, B04 | ☐ |
 | [B10](B10-baseline-unmodified-store.md) | Baseline run on the unmodified store | 3 Baseline | B07, B08, B09 | ☐ |
 | [S1](S1-batched-embedded-ingestion.md) | Batched embedded ingestion (+ deferred graph build) | 4 Viability fixes | B10 | ☐ |
@@ -42,6 +42,7 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [B19](B19-hybrid-variants-and-tuned.md) | `hybrid-variants` sweep → freeze `hybrid-tuned` | 5 Canonical | S7, S8, B12 | ☐ |
 | [B16](B16-canonical-profile.md) | `canonical` profile (standard tier) + loaded-DB reuse/cache | 5 Canonical | B12–B14, B19 | ☐ |
 | [S10](S10-version-compatibility.md) | Store version compatibility (26.7.2 + latest) | 6 Versions | — | ☐ |
+| [S11](S11-remote-text-escaping.md) | Remote mode: bind values as parameters (line breaks break SQL) | Not scheduled — next integration version | — | note only |
 | [B17](B17-version-comparison-run.md) | Version comparison run + report | 6 Versions | B15, B16, S10 | ☐ |
 | [S5](S5-remove-scan-fallback.md) | Remove O(N) scan fallback at scale | 7 Extended | B10 | ☐ |
 | [S6](S6-expose-index-options.md) | Expose index options (quantization, similarity) | 7 Extended | B10 | ☐ |

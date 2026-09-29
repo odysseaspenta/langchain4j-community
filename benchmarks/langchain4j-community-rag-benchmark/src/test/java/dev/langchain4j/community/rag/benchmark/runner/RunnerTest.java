@@ -11,14 +11,27 @@ import dev.langchain4j.community.rag.benchmark.embedding.FakeEmbeddingModel;
 import dev.langchain4j.community.rag.benchmark.groundtruth.GroundTruth;
 import dev.langchain4j.community.rag.benchmark.report.ResultWriter;
 import dev.langchain4j.community.rag.benchmark.report.RunResult;
+import dev.langchain4j.community.rag.benchmark.targets.BenchmarkTarget;
+import dev.langchain4j.community.rag.benchmark.targets.DocumentSource;
+import dev.langchain4j.community.rag.benchmark.targets.LoadOptions;
+import dev.langchain4j.community.rag.benchmark.targets.LoadStats;
 import dev.langchain4j.community.rag.benchmark.targets.SearchMode;
+import dev.langchain4j.community.rag.benchmark.targets.SearchRequest;
+import dev.langchain4j.community.rag.benchmark.targets.SearchResult;
+import dev.langchain4j.community.rag.benchmark.targets.arcadedb.ArcadeDbRemoteTargetTest;
 import dev.langchain4j.community.rag.benchmark.targets.arcadedb.ArcadeDbSettings;
 import dev.langchain4j.community.rag.benchmark.targets.arcadedb.ArcadeDbTarget;
+import dev.langchain4j.community.rag.benchmark.targets.arcadedb.ArcadeDbVersion;
+import dev.langchain4j.community.rag.benchmark.targets.arcadedb.RemoteSettings;
+import dev.langchain4j.community.rag.benchmark.util.CpuSet;
 import dev.langchain4j.community.rag.benchmark.util.Json;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -105,6 +118,103 @@ class RunnerTest {
             assertThat(b.accuracy()).isEqualTo(a.accuracy());
             assertThat(b.annRecall()).isEqualTo(a.annRecall());
         }
+    }
+
+    @Test
+    void should_abort_a_scenario_after_a_failure_streak_and_count_skipped_queries_as_empty() throws Exception {
+        BenchmarkConfig config = new BenchmarkConfig(dataDir, resultsDir, 42, BenchmarkConfig.DEV);
+        ProfilePlan densePlan = new ProfilePlan(
+                Profile.SMOKE, List.of(Tier.SMOKE), List.of(TargetMode.EMBEDDED), List.of(Scenario.DENSE), 10, 2);
+        Runner.TargetFactory factory = (tier, mode) -> new NothingTarget();
+
+        RunResult result = new Runner(
+                        config, dataset, cache, groundTruth, factory, new Runner.Settings(100, null, "dev", 3, null))
+                .run(densePlan);
+
+        RunResult.ScenarioResult dense = result.runs().get(0).scenarios().get(0);
+        assertThat(dense.aborted()).isEqualTo("3 consecutive failed or empty queries");
+        assertThat(dense.failures().empty()).isEqualTo(3);
+        assertThat(dense.failures().skipped()).isEqualTo(7);
+        assertThat(dense.accuracy().queries()).isEqualTo(10);
+        assertThat(dense.accuracy().ndcgAt10()).isZero();
+        assertThat(dense.repetitions()).isEmpty();
+        assertThat(dense.cold().samples()).isEqualTo(3);
+        assertThat(result.config().failureStreakLimit()).isEqualTo(3);
+
+        Path dir = ResultWriter.write(resultsDir, "arcadedb-test", result);
+        assertThat(Files.readString(dir.resolve("report.md")))
+                .contains("dense ⚠ aborted")
+                .contains("aborted: 3 consecutive failed or empty queries");
+    }
+
+    @Test
+    void should_not_abort_when_queries_succeed() throws Exception {
+        RunResult result = run();
+
+        assertThat(result.runs().get(0).scenarios())
+                .allSatisfy(scenario -> {
+                    assertThat(scenario.aborted()).isNull();
+                    assertThat(scenario.failures().skipped()).isZero();
+                });
+    }
+
+    @Test
+    void should_run_remote_mode_in_docker() throws Exception {
+        Assumptions.assumeTrue(ArcadeDbRemoteTargetTest.dockerAvailable(), "Docker not available");
+        BenchmarkConfig config = new BenchmarkConfig(dataDir, resultsDir, 42, BenchmarkConfig.DEV);
+        ProfilePlan remotePlan = plan.withModes(List.of(TargetMode.REMOTE));
+        RemoteSettings remote = new RemoteSettings(
+                ArcadeDbVersion.dockerImage(), CpuSet.online().upperHalf(), "1g", Duration.ofSeconds(30));
+        Runner.TargetFactory factory = (tier, mode) -> ArcadeDbTarget.remote(
+                dataDir.resolve("server"), ArcadeDbSettings.pinned(FakeEmbeddingModel.DIMENSION), remote);
+
+        RunResult result = new Runner(config, dataset, cache, groundTruth, factory, new Runner.Settings(100, null, "dev"))
+                .run(remotePlan);
+
+        RunResult.TargetRun run = result.runs().get(0);
+        assertThat(run.target()).isEqualTo("arcadedb-remote");
+        assertThat(run.mode()).isEqualTo("remote");
+        assertThat(run.load().loaded()).isEqualTo(600);
+        assertThat(run.scenarios()).allSatisfy(scenario -> {
+            assertThat(scenario.aborted()).isNull();
+            assertThat(scenario.failures().failed()).isZero();
+        });
+        Path dir = ResultWriter.write(resultsDir, "arcadedb-test", result);
+        assertThat(Files.readString(dir.resolve("report.md")))
+                .contains("| smoke | arcadedb-remote | dense |")
+                .contains("server CPUs " + CpuSet.online().upperHalf());
+    }
+
+    /** A target that answers every query with nothing, like remote dense on the unmodified store after a timeout. */
+    static final class NothingTarget implements BenchmarkTarget {
+
+        @Override
+        public String name() {
+            return "nothing";
+        }
+
+        @Override
+        public LoadStats load(DocumentSource source, LoadOptions options) {
+            return new LoadStats(source.size(), 0, false, 0, 0, 0, 0, -1, 0, -1);
+        }
+
+        @Override
+        public SearchResult search(SearchRequest request) {
+            return SearchResult.of(List.of(), List.of());
+        }
+
+        @Override
+        public Map<String, Boolean> capabilities() {
+            return Map.of();
+        }
+
+        @Override
+        public Map<String, Object> describe() {
+            return Map.of("target", name());
+        }
+
+        @Override
+        public void close() {}
     }
 
     @Test

@@ -12,6 +12,8 @@ package dev.langchain4j.community.rag.benchmark.targets;
  * @param timeToSearchableSeconds from the end of loading until the index is fully built and searchable
  * @param diskBytes               on-disk size after loading, or -1 if not applicable
  * @param peakHeapBytes           peak heap of this JVM during loading and index build
+ * @param serverPeakMemoryBytes   peak memory of a separate server process (heap plus off-heap), or -1 when the
+ *                                store runs in this JVM
  */
 public record LoadStats(
         int requested,
@@ -22,4 +24,5 @@ public record LoadStats(
         double extrapolatedLoadSeconds,
         double timeToSearchableSeconds,
         long diskBytes,
-        long peakHeapBytes) {}
+        long peakHeapBytes,
+        long serverPeakMemoryBytes) {}

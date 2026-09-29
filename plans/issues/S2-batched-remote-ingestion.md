@@ -10,6 +10,8 @@
 ## Current behaviour
 `addAllRemote` (`:327-358`) sends one HTTP `command` per vector with the vector inlined into SQL via `embeddingToSql`.
 
+Related: [S11](S11-remote-text-escaping.md) (remote SQL inlining breaks on line breaks; note only). If S11 has landed, batch its parameterized insert.
+
 ## Scope
 - Many rows per request with vectors as parameters: parameterized `sqlscript` inside `begin()/commit()`, `INSERT … CONTENT [...]`, or `RemoteDatabase` `/batch` (handoff §6.3). Pick one, justify in the PR (throughput, upsert semantics, version availability on 26.7.2).
 - Configurable batch size; upsert semantics preserved.

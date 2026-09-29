@@ -2,6 +2,7 @@ package dev.langchain4j.community.rag.benchmark.targets.arcadedb;
 
 import static dev.langchain4j.store.embedding.filter.MetadataFilterBuilder.metadataKey;
 
+import com.arcadedb.GlobalConfiguration;
 import com.arcadedb.database.Database;
 import com.arcadedb.database.DatabaseFactory;
 import com.arcadedb.exception.NeedRetryException;
@@ -9,6 +10,9 @@ import com.arcadedb.index.Index;
 import com.arcadedb.index.IndexInternal;
 import com.arcadedb.index.TypeIndex;
 import com.arcadedb.index.vector.LSMVectorIndex;
+import com.arcadedb.query.sql.executor.Result;
+import com.arcadedb.query.sql.executor.ResultSet;
+import com.arcadedb.remote.RemoteDatabase;
 import com.arcadedb.schema.LSMVectorIndexMetadata;
 import dev.langchain4j.community.rag.benchmark.targets.BenchmarkTarget;
 import dev.langchain4j.community.rag.benchmark.targets.Document;
@@ -18,6 +22,7 @@ import dev.langchain4j.community.rag.benchmark.targets.LoadStats;
 import dev.langchain4j.community.rag.benchmark.targets.SearchMode;
 import dev.langchain4j.community.rag.benchmark.targets.SearchRequest;
 import dev.langchain4j.community.rag.benchmark.targets.SearchResult;
+import dev.langchain4j.community.rag.benchmark.util.CpuSet;
 import dev.langchain4j.community.rag.benchmark.util.HeapPeak;
 import dev.langchain4j.community.store.embedding.arcadedb.ArcadeDBEmbeddingStore;
 import dev.langchain4j.data.document.Metadata;
@@ -30,6 +35,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -40,9 +46,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The LangChain4j ArcadeDB embedding store in embedded mode (ArcadeDB in this JVM). Every load and query goes
- * through the store's {@code EmbeddingStore} API; ArcadeDB internals are touched only to force and time the vector
- * graph build and to record index settings.
+ * The LangChain4j ArcadeDB embedding store, embedded (ArcadeDB in this JVM) or remote (an ArcadeDB server in Docker,
+ * PRD D7). Every load and query goes through the store's {@code EmbeddingStore} API; ArcadeDB is touched directly only
+ * to force and time the vector graph build, set the remote query timeout and record index settings.
  */
 public final class ArcadeDbTarget implements BenchmarkTarget {
 
@@ -56,25 +62,50 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
     private static final java.util.logging.Logger VECTOR_INDEX_LOG =
             java.util.logging.Logger.getLogger("com.arcadedb.index.vector");
 
+    /** Remote database name; one database per server directory. */
+    static final String REMOTE_DATABASE = "bench";
+
+    /** Client-side HTTP timeout for loading; generous because 26.7.2 may block inserts during graph rebuilds. */
+    private static final Duration REMOTE_LOAD_TIMEOUT = Duration.ofMinutes(10);
+
+    /** Client-side HTTP timeout for the post-load index rebuild. */
+    private static final Duration REMOTE_REBUILD_TIMEOUT = Duration.ofHours(6);
+
+    /** Embedded: database directory. Remote: server directory ({@code databases/}, {@code log/}). */
     private final Path databaseDir;
+
     private final ArcadeDbSettings settings;
+    /** {@code null} in embedded mode. */
+    private final RemoteSettings remote;
+
     private Database database;
+    private DockerServer server;
     private ArcadeDBEmbeddingStore store;
     private Map<String, Object> effectiveIndex = Map.of();
+    private Map<String, Object> serverDescription = Map.of();
     private int vectorSubIndexes;
 
-    private ArcadeDbTarget(Path databaseDir, ArcadeDbSettings settings) {
+    private ArcadeDbTarget(Path databaseDir, ArcadeDbSettings settings, RemoteSettings remote) {
         this.databaseDir = databaseDir;
         this.settings = settings;
+        this.remote = remote;
     }
 
     public static ArcadeDbTarget embedded(Path databaseDir, ArcadeDbSettings settings) {
-        return new ArcadeDbTarget(databaseDir, settings);
+        return new ArcadeDbTarget(databaseDir, settings, null);
+    }
+
+    /**
+     * Remote mode: {@link #load} starts an ArcadeDB server container keeping its data in {@code serverDir};
+     * {@link #close} stops it.
+     */
+    public static ArcadeDbTarget remote(Path serverDir, ArcadeDbSettings settings, RemoteSettings remote) {
+        return new ArcadeDbTarget(serverDir, settings, remote);
     }
 
     @Override
     public String name() {
-        return "arcadedb-embedded";
+        return remote == null ? "arcadedb-embedded" : "arcadedb-remote";
     }
 
     @Override
@@ -82,17 +113,11 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
         close();
         deleteRecursively(databaseDir);
         Files.createDirectories(databaseDir.getParent());
-        try (DatabaseFactory factory = new DatabaseFactory(databaseDir.toString())) {
-            database = factory.create();
+        if (remote == null) {
+            openEmbedded();
+        } else {
+            openRemote();
         }
-        VECTOR_INDEX_LOG.setLevel(java.util.logging.Level.WARNING);
-        store = ArcadeDBEmbeddingStore.embeddedBuilder()
-                .database(database)
-                .typeName(settings.typeName())
-                .dimension(settings.dimension())
-                .maxConnections(settings.maxConnections())
-                .beamWidth(settings.beamWidth())
-                .build();
 
         HeapPeak.reset();
         long start = System.nanoTime();
@@ -109,7 +134,8 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
             for (Document document : batch) {
                 ids.add(document.id());
                 embeddings.add(Embedding.from(document.vector()));
-                segments.add(TextSegment.from(document.text(), new Metadata(document.metadata())));
+                String text = remote == null ? document.text() : singleLine(document.text());
+                segments.add(TextSegment.from(text, new Metadata(document.metadata())));
             }
             store.addAll(ids, embeddings, segments);
             loaded += batch.size();
@@ -124,11 +150,21 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
         double loadSeconds = (System.nanoTime() - start) / 1e9;
 
         long buildStart = System.nanoTime();
-        LSMVectorIndex index = buildVectorGraph();
-        VECTOR_INDEX_LOG.setLevel(java.util.logging.Level.WARNING);
+        if (remote == null) {
+            LSMVectorIndex index = buildVectorGraph();
+            VECTOR_INDEX_LOG.setLevel(java.util.logging.Level.WARNING);
+            effectiveIndex = publicFields(index.getMetadata());
+        } else {
+            rebuildRemoteIndex();
+        }
         double timeToSearchable = (System.nanoTime() - buildStart) / 1e9;
-        effectiveIndex = publicFields(index.getMetadata());
         long peakHeap = HeapPeak.peakBytes();
+        long serverPeak = server == null ? -1 : server.peakMemoryBytes();
+        long diskBytes = directorySize(
+                remote == null ? databaseDir : server.databasesDir().resolve(REMOTE_DATABASE));
+        if (remote != null) {
+            limitRemoteQueryTime();
+        }
 
         double rate = loaded / Math.max(loadSeconds, 1e-9);
         log.info(
@@ -147,8 +183,121 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
                 rate,
                 capped ? source.size() / rate : loadSeconds,
                 timeToSearchable,
-                directorySize(databaseDir),
-                peakHeap);
+                diskBytes,
+                peakHeap,
+                serverPeak);
+    }
+
+    /**
+     * The unmodified store's remote {@code addAll} inlines text into SQL string literals and escapes only quotes and
+     * backslashes, so any line break is a SQL syntax error and every NQ passage ({@code title + "\n" + text}) fails.
+     * Remote mode therefore stores line breaks as spaces. Embeddings are unaffected, and the full-text analyzer splits
+     * on both alike, so retrieval is unchanged. Remove once the store binds text as a parameter (S11).
+     */
+    static String singleLine(String text) {
+        return text.replace("\r\n", " ").replace('\r', ' ').replace('\n', ' ');
+    }
+
+    private void openEmbedded() {
+        try (DatabaseFactory factory = new DatabaseFactory(databaseDir.toString())) {
+            database = factory.create();
+        }
+        VECTOR_INDEX_LOG.setLevel(java.util.logging.Level.WARNING);
+        store = ArcadeDBEmbeddingStore.embeddedBuilder()
+                .database(database)
+                .typeName(settings.typeName())
+                .dimension(settings.dimension())
+                .maxConnections(settings.maxConnections())
+                .beamWidth(settings.beamWidth())
+                .build();
+    }
+
+    private void openRemote() throws IOException, InterruptedException {
+        server = DockerServer.start(
+                new DockerServer.Options(remote.image(), remote.serverCpus(), remote.serverHeap(), databaseDir));
+        serverDescription = server.describe();
+        // The store creates its RemoteDatabase internally; its HTTP timeout comes from this JVM-wide setting. It must
+        // outlast the server-side query timeout so that a slow query ends with the server's error, not the client's.
+        long clientTimeout = Math.max(
+                REMOTE_LOAD_TIMEOUT.toMillis(), remote.queryTimeout().toMillis() + 30_000);
+        GlobalConfiguration.NETWORK_SOCKET_TIMEOUT.setValue(clientTimeout);
+        store = ArcadeDBEmbeddingStore.builder()
+                .host(server.host())
+                .port(server.port())
+                .databaseName(REMOTE_DATABASE)
+                .username(DockerServer.USER)
+                .password(DockerServer.PASSWORD)
+                .createDatabase(true)
+                .typeName(settings.typeName())
+                .dimension(settings.dimension())
+                .maxConnections(settings.maxConnections())
+                .beamWidth(settings.beamWidth())
+                .build();
+    }
+
+    /**
+     * Remote time-to-searchable: {@code REBUILD INDEX} on the vector index, which rebuilds it synchronously with its
+     * original metadata (the server exposes no build state and no {@code buildVectorGraphNow()}). Unlike the embedded
+     * graph build it also re-reads every record, so it is an upper bound. Harness SQL, not via the store API.
+     */
+    private void rebuildRemoteIndex() throws InterruptedException {
+        try (RemoteDatabase admin = adminDatabase()) {
+            admin.setTimeout((int) REMOTE_REBUILD_TIMEOUT.toMillis());
+            vectorSubIndexes = countRemoteVectorSubIndexes(admin);
+            if (vectorSubIndexes != 1) {
+                throw new IllegalStateException("Expected exactly one vector sub-index for " + settings.typeName()
+                        + " but found " + vectorSubIndexes);
+            }
+            String sql = "REBUILD INDEX `" + settings.typeName() + "[embedding]`";
+            for (int attempt = 1; ; attempt++) {
+                try {
+                    admin.command("sql", sql).close();
+                    return;
+                } catch (RuntimeException e) {
+                    // A background rebuild may hold the index (NeedRetryException on the server).
+                    if (attempt >= 50 || !String.valueOf(e.getMessage()).contains("NeedRetry")) {
+                        throw e;
+                    }
+                    Thread.sleep(1000);
+                }
+            }
+        }
+    }
+
+    private int countRemoteVectorSubIndexes(RemoteDatabase admin) {
+        int count = 0;
+        try (ResultSet indexes = admin.query("sql", "SELECT FROM schema:indexes")) {
+            while (indexes.hasNext()) {
+                Result index = indexes.next();
+                // The type-level index has no file of its own; each bucket's sub-index does.
+                if ("LSM_VECTOR".equals(index.getProperty("indexType"))
+                        && settings.typeName().equals(index.getProperty("typeName"))
+                        && index.hasProperty("fileId")) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Sets the server-side query timeout for the database after loading, so loading and the rebuild are not limited
+     * but a runaway query (the unmodified store runs one ANN search per scanned row remotely) is aborted on the server
+     * instead of competing with the next queries for CPU.
+     */
+    private void limitRemoteQueryTime() {
+        try (RemoteDatabase admin = adminDatabase()) {
+            admin.command(
+                            "sql",
+                            "ALTER DATABASE `arcadedb.command.timeout` "
+                                    + remote.queryTimeout().toMillis())
+                    .close();
+        }
+    }
+
+    private RemoteDatabase adminDatabase() {
+        return new RemoteDatabase(
+                server.host(), server.port(), REMOTE_DATABASE, DockerServer.USER, DockerServer.PASSWORD);
     }
 
     @Override
@@ -193,9 +342,31 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
         description.put("maxConnections", settings.maxConnections());
         description.put("beamWidth", settings.beamWidth());
         description.put("quantization", "NONE (not configurable before S6)");
-        description.put("similarity", "COSINE (fixed in embedded mode before S6)");
+        description.put("similarity", "COSINE (store default before S6)");
         description.put("vectorSubIndexes", vectorSubIndexes);
-        description.put("effectiveIndex", effectiveIndex);
+        if (remote == null) {
+            description.put("graphBuild", "LSMVectorIndex.buildVectorGraphNow() after loading");
+            description.put("effectiveIndex", effectiveIndex);
+        } else {
+            description.put(
+                    "graphBuild", "REBUILD INDEX via SQL after loading (harness step, not via store API)");
+            description.put("effectiveIndex", "not observable over HTTP; created with the settings above");
+            description.put(
+                    "storedText",
+                    "line breaks replaced by spaces (unmodified remote addAll cannot insert them; see S11)");
+            description.put("queryTimeoutMillis", remote.queryTimeout().toMillis());
+            description.put("queryTimeoutMechanism", "ALTER DATABASE `arcadedb.command.timeout` after loading");
+            CpuSet clientCpus = CpuSet.ofThisProcess();
+            description.put("clientCpus", clientCpus.toString());
+            description.put("serverCpus", remote.serverCpus().toString());
+            description.put("server", serverDescription);
+            List<String> warnings = new ArrayList<>();
+            if (clientCpus.overlaps(remote.serverCpus())) {
+                warnings.add("client CPUs " + clientCpus + " overlap server CPUs " + remote.serverCpus()
+                        + " (pin the client with RAG_BENCH_CLIENT_CPUS)");
+            }
+            description.put("isolationWarnings", warnings);
+        }
         description.put("versionDefaults", versionDefaults());
         return description;
     }
@@ -203,13 +374,22 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
     @Override
     public void close() {
         if (store != null) {
-            store.close(); // also closes the database
+            store.close(); // embedded: also closes the database
             store = null;
         }
         if (database != null && database.isOpen()) {
             database.close();
         }
         database = null;
+        if (server != null) {
+            server.close();
+            server = null;
+        }
+    }
+
+    /** The running server, or {@code null} (embedded mode, or not loaded). */
+    DockerServer server() {
+        return server;
     }
 
     /**

@@ -12,11 +12,12 @@ Read this first when picking the work up on the implementation machine (human or
 ### Status as of 2026-09-29 (dev box)
 - **Done (code + unit tests, 69 tests):** B01 skeleton, B02 dataset/tiers, B03 embedding cache, B04 ground truth, B05 metrics, B06 embedded ArcadeDB target, B07 runner + `smoke` profile + JSON/Markdown. See each issue's *Outcome* section.
 - **Deferred heavy runs** (dev box too slow; each issue has a *Deferred to the reference machine* checklist): B03 smoke embedding (100k), B04 smoke/standard ground truth, B06/B07 real smoke run (**M1 milestone**).
-- **Next:** B08 (remote Docker target), then B09 (standard embedding + ground truth).
+- **B08 (remote Docker target) code done** (77 tests). Findings: the unmodified remote store cannot ingest text with line breaks (all BEIR passages; worked around in the target; noted as S11 for the next integration version, not scheduled), and remote `dense` is > 30 s/query already at 5k vectors (→ S3; the runner now aborts such scenarios). Real remote smoke run deferred with the other smoke runs.
+- **Next:** B09 (standard embedding + ground truth).
 - **First steps on the faster machine:**
   1. Build: `./mvnw -Pbenchmarks -pl benchmarks/langchain4j-community-rag-benchmark -am package -Dmaven.test.skip=false` (JDK 21; note `MAVEN_OPTS` may skip tests).
-  2. Run: `RAG_BENCH_DATA_DIR=/data/rag-bench RAG_BENCH_HEAP=8g benchmarks/langchain4j-community-rag-benchmark/rag-bench --machine-class reference run --profile smoke`. That downloads NQ, embeds the smoke tier (~100k passages), computes ground truth, loads ArcadeDB and writes results.
-  3. Tick the deferred checklists in B03, B04, B06 and B07.
+  2. Run: `RAG_BENCH_DATA_DIR=/data/rag-bench RAG_BENCH_HEAP=8g RAG_BENCH_CLIENT_CPUS=0-3 benchmarks/langchain4j-community-rag-benchmark/rag-bench --machine-class reference run --profile smoke --mode embedded,remote`. That downloads NQ, embeds the smoke tier (~100k passages), computes ground truth, loads ArcadeDB embedded and in Docker (`docker pull arcadedata/arcadedb:26.7.2` first) and writes results.
+  3. Tick the deferred checklists in B03, B04, B06, B07 and B08.
 - **Early findings so far:** hybrid-asis looks worse than dense on a 2k-passage spot check (B06); the unmodified store compiles against ArcadeDB 26.9.1 (B01).
 
 ## 2. Git / repository strategy (keep benchmark out of upstream)
