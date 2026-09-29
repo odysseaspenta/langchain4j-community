@@ -27,6 +27,7 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [B07](B07-runner-smoke-profile-json.md) | Runner, `smoke` profile, JSON results, trivial report | 1 Smoke path | B02–B06 | ☐◐ code done; real smoke run deferred |
 | [B08](B08-remote-target.md) | Remote (Docker) `ArcadeDbTarget` | 2 Scale-up | B06, B07 | ☐◐ code done; real smoke run deferred |
 | [B09](B09-standard-embedding-and-ground-truth.md) | Standard-tier embedding cache + ground truth (run) | 2 Scale-up | B00, B03, B04 | ☐ |
+| [B09a](B09a-gpu-embedding-backend.md) | GPU embedding backend (AMD ROCm) + compliance gate (PRD A4) | 2 Scale-up | B03 | ☐ (light check passed) |
 | [B10](B10-baseline-unmodified-store.md) | Baseline run on the unmodified store | 3 Baseline | B07, B08, B09 | ☐ |
 | [S1](S1-batched-embedded-ingestion.md) | Batched embedded ingestion (+ deferred graph build) | 4 Viability fixes | B10 | ☐ |
 | [S2](S2-batched-remote-ingestion.md) | Batched remote ingestion | 4 Viability fixes | B10 | ☐ |

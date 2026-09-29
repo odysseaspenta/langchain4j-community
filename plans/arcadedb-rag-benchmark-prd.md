@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | Draft — requirements agreed, not yet implemented |
-| Date | 2026-09-27 (amended 2026-09-28 — see §5.1) |
+| Date | 2026-09-27 (amended 2026-09-28, 2026-09-29 — see §5.1) |
 | Owner | odysseas |
 | Scope | `embedding-stores/langchain4j-community-arcadedb` + new `benchmarks/langchain4j-community-rag-benchmark` module |
 | Companion | [`arcadedb-rag-benchmark-handoff.md`](arcadedb-rag-benchmark-handoff.md) (implementation handoff) |
@@ -60,13 +60,14 @@ Code review of the current store also shows it cannot be meaningfully benchmarke
 | D18 | No gate; human decision |
 | D19 | Run profiles `smoke` / `canonical` / `extended`; canonical ≤ ~8 h on reference machine |
 
-### 5.1 Amendments (2026-09-28)
+### 5.1 Amendments (2026-09-28, 2026-09-29)
 
 | # | Amendment | Affects |
 |---|---|---|
 | A1 | **Full tier deferred.** Until every other work item is complete, runs use only the `smoke` and `standard` tiers. All `full`-tier work (embedding the remaining ~1.68M passages, full-tier ground truth, the full-tier part of `canonical`, full-tier remote in `extended`, acceptance 2) is done last — see `issues/B22`. The embedding cache is built append-only, `standard` ids first, so extending it to `full` re-embeds nothing. | F7, F14, acceptance 2, 5 |
 | A2 | **Reference machine lowered** to ≥8 physical cores / ≥32 GB RAM (was ≥16 / ≥64 GB). | N2, R7, M7 |
 | A3 | **Development machine allowed.** Early implementation may happen on a lower-spec machine (N2a) before the reference machine is available; its results are development-only. | N2a |
+| A4 | **GPU passage embedding allowed** (2026-09-29). Bulk *passage* embedding may use an external GPU server running the same model weights and tokenizer (`BAAI/bge-small-en-v1.5` at revision `5c38ec7c405ec4b44b94cc5a9bb96e735b38267a`, whose `onnx/model.onnx` is the in-process model), provided it passes the compliance gate in `issues/B09a` (per-vector cosine ≥ 0.999 vs the in-process model; exact top-10 neighbours unchanged) and the cache manifest records the backend. Texts the server cannot embed whole (> 512 tokens) are embedded in-process. Query embedding and query-embedding latency stay in-process on the CPU. The benchmark itself stays all-Java; the server is a pinned container, like the ArcadeDB image. | D6, D14, F6, F7, F9 |
 
 ## 6. Store improvement requirements (`ArcadeDBEmbeddingStore`)
 
