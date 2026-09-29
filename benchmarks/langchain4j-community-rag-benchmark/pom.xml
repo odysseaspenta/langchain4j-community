@@ -32,6 +32,13 @@
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-community-arcadedb</artifactId>
             <version>${project.version}</version>
+            <exclusions>
+                <!-- arcadedb-engine ships an SLF4J->JUL provider; the benchmark uses slf4j-simple. -->
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-jdk14</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -43,6 +50,17 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <scope>runtime</scope>
         </dependency>
 
         <dependency>

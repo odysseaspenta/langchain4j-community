@@ -43,13 +43,23 @@ Raw results under `benchmarks/results/` are git-ignored; only `report.md` and `*
 | Command | Status |
 |---|---|
 | `info` | Prints resolved configuration and the ArcadeDB version under test |
-| `prepare` | Pending — B02 |
+| `prepare [--dataset nq]` | Downloads and verifies the dataset (resumable), builds tier id lists |
 | `embed` | Pending — B03 |
 | `ground-truth` | Pending — B04 |
 | `run --profile smoke\|canonical\|extended` | Pending — B07 |
 | `compare <result.json>...` | Pending — B15 |
 
 Pending commands exit with code 3 and name their issue.
+
+## Data directory layout
+
+```
+datasets/nq/raw/                    corpus.jsonl, queries.jsonl, qrels/test.tsv (mteb/nq, pinned revision + SHA-256)
+datasets/nq/manifest.json           counts and file checksums (no paths/timestamps; its checksum identifies the data)
+datasets/nq/tiers/seed-42/          priority.ids, smoke.ids, standard.ids, full.ids, manifest.json
+```
+
+`priority.ids` is the embedding-cache order: relevant passages first, then the rest shuffled; each tier is a prefix of it, so `smoke ⊂ standard ⊂ full`. `<tier>.ids` lists the same members shuffled again: this is the order passages are loaded into a store. See `TierSampler` for the exact algorithm.
 
 ## Packages
 

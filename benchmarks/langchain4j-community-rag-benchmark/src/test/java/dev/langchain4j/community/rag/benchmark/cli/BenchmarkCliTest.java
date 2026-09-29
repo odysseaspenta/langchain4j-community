@@ -57,6 +57,14 @@ class BenchmarkCliTest {
     }
 
     @Test
+    void should_reject_unknown_dataset() {
+        int exitCode = execute("prepare", "--dataset", "nope", "--data-dir", tmp.toString());
+
+        assertThat(exitCode).isEqualTo(CommandLine.ExitCode.USAGE);
+        assertThat(err.toString()).contains("Unknown dataset 'nope'");
+    }
+
+    @Test
     void should_reject_unknown_profile() {
         int exitCode = execute("run", "--profile", "huge");
 

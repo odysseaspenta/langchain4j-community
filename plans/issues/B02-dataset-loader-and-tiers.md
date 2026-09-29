@@ -23,3 +23,13 @@
 
 ## Notes
 Handoff §6.1: the queries file contains all splits; HF parquet (764 MB) vs mteb jsonl (1.46 GB) — pick one, keep the other as fallback. Cite BEIR/NQ (CC BY-SA) in reports (N6).
+
+## Outcome (2026-09-29)
+- Source: `mteb/nq` jsonl at revision `b84726e65fd226125cf7c0cbeeb5c214d49e8187` (Java-friendly; the BeIR parquet would need Hadoop/Parquet libraries). All three files pinned by size + SHA-256 in `DatasetSource.NQ`; queries file holds only the 3,452 test queries; qrels: 4,201 pairs, all score 1, one relevant passage each.
+- `rag-bench prepare` on the dev box: 1.46 GB download (resumed correctly after an interrupt, through the HF CDN redirect) + verification + sampling in ~20 s of processing.
+- Tier layout: `priority.ids` (relevant first, rest shuffled) whose prefixes are the tiers — this is the order B03 must fill the embedding cache in; `<tier>.ids` = members shuffled again per tier = store load order, so relevant passages are spread through the index (mean position ≈ 50k of 100k in smoke) rather than inserted first.
+- Checksums on seed 42: smoke `a0314d6f…f2a8`, standard `8c555193…bf25`, full `6e2a47f0…f55b`; regenerating produces byte-identical files.
+- Verified independently (Python) on the real data: all 4,201 relevant passages in every tier; tiers nest and equal priority-order prefixes; `bucket` fractions smoke 1.06% / 10.01% / 49.99%, standard 0.98% / 9.99% / 50.02%.
+- `bucket` algorithm (FNV-1a 64 → SplitMix64 → floorMod 100) is pinned by a golden-value test cross-checked against an independent implementation.
+- Not built: `--local-dir` for arbitrary BEIR folders. Adding a dataset = adding a `DatasetSource` constant (loader is generic, F5).
+- Logging: excluded `slf4j-jdk14` (shipped by arcadedb-engine) so `slf4j-simple` is the only SLF4J provider; ArcadeDB itself still logs via JUL (relevant for F18 in B06).
