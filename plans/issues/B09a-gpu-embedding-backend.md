@@ -45,3 +45,25 @@ Record the numbers in this issue's *Outcome*.
 - Compliance gate passes on the smoke tier; numbers recorded.
 - `embed --tier standard --backend http` builds the standard cache resumably; the manifest shows the backend, server details and CPU-fallback count.
 - B09's ground truth computed from that cache; B09 records that the cache was GPU-built.
+
+## Compliance gate result (2026-09-29, smoke tier, standalone script)
+Re-embedded all 100,000 smoke passages through the server (length-sorted batches of 128, one request at a time) and compared with the CPU cache and the Java ground truth:
+
+| Check | Result | Threshold |
+|---|---|---|
+| Passages refused as > 512 tokens (keep CPU vectors) | 168 (0.17%) | — |
+| Per-vector cosine GPU vs CPU | min 0.9999214, p0.1 0.9999995, median 1.0000000 | min ≥ 0.999 ✅ |
+| Max per-component difference | 2.6e-3 | — |
+| Script sanity: numpy CPU top-10 vs Java ground truth | identical for 100% of queries | — |
+| Exact top-10 set, GPU vs CPU | identical for **100%** of 3,452 queries; top-100 mean overlap 0.99999 | ≥ 99.9% ✅ |
+| Exact top-10 order | identical for 99.97% (one near-tie swap) | — |
+| Exact-neighbour nDCG@10 / Recall@100 | CPU 0.8584 / 0.9876, GPU 0.8584 / 0.9876 | unchanged to 4 dp ✅ |
+
+**The accuracy gate passes.** GPU vectors are interchangeable with the CPU ones.
+
+**Throughput is disappointing: 185 passages/s overall** (~950/s on the shortest passages, falling to ~200/s on the longest), about 2× the 8-core CPU (95/s). Observations:
+- Two concurrent requests of 256 texts ran the 16 GB GPU out of memory (fp32 attention at 512 tokens); the server has no request serialisation, so the client must send one request at a time (or the server should hold a lock around `encode`).
+- Random batches pad to the longest text and ran at ~75/s; sorting by length before batching gave the 185/s above.
+- After the OOM, PyTorch's cache holds all 16 GB of VRAM; a server restart may help.
+- Options to try before B09 (each re-checked against this gate): restart the server; `PYTORCH_TUNABLEOP_ENABLED=1` (GEMM tuning on ROCm); larger batches for short texts; running the CPU and GPU backends side by side (~280/s combined). fp16 would be much faster but departs from "full precision" (D6) — owner decision, and it must pass the gate.
+- At 185/s the standard tier (1M) takes ~1.5 h on the GPU vs ~2.9 h on the CPU.

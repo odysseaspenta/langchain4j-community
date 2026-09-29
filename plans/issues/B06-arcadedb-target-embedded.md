@@ -35,5 +35,5 @@
 - **Early finding for B10/S7:** for q0 ("what is non controlling interest on balance sheet") dense returns the two judged-relevant passages (doc0, doc1) at ranks 1–2, but hybrid-asis ranks neither in its top 3 — consistent with the full-text source being unbounded and unscored, so RRF ranks are arbitrary. To be quantified by `hybrid-asis` nDCG@10.
 
 ### Deferred to the reference machine
-- [ ] Acceptance: load the full smoke tier (100k) through the target and answer `dense` + `hybrid-asis` — happens in B07/B10.
+- [x] Acceptance: load the full smoke tier (100k) through the target and answer `dense` + `hybrid-asis` — 2026-09-29 smoke run (see B07).
 - [ ] Observe 26.7.2's rebuild-every-100-mutations behaviour at scale during load (R3).

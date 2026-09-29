@@ -25,6 +25,6 @@
 - **Acceptance 4 met (unit test):** 10k random 32-d unit vectors, 25 queries, top-100 identical to LangChain4j `InMemoryEmbeddingStore`, unfiltered and with `metadataKey("bucket").isLessThan(10)`. (`langchain4j` added as a test-scope dependency for this.)
 
 ### Deferred to the reference machine
-- [ ] Smoke-tier ground truth on real NQ embeddings (needs the deferred B03 smoke embedding), then rerun to confirm a cache hit.
+- [x] Smoke-tier ground truth on real NQ embeddings, then rerun to confirm a cache hit — 2026-09-29; the `run` step logged "Ground truth for [SMOKE] is up to date".
 - [ ] Standard-tier (1M) plain + filtered ground truth — part of B09.
-- [ ] Record brute-force wall time per tier (sizing input for B09/B22).
+- [ ] Record brute-force wall time per tier (sizing input for B09/B22). Smoke: **14.6 s** (3,452 × 100k, plain + bucket < 1/10/50 in one pass, 8 threads); standard in B09.

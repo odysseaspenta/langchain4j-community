@@ -34,6 +34,11 @@
 - Tests (69 total): runner end-to-end on real embedded ArcadeDB with fake embeddings (4 scenarios incl. filtered and an efSearch the store cannot apply), identical accuracy on consecutive runs (N1), JSON round-trip and Markdown content, isolation warnings, CLI profile errors.
 
 ### Deferred to the reference machine
-- [ ] `./rag-bench --machine-class reference run --profile smoke` on real NQ (needs the 100k smoke embeddings from B03) — **M1 milestone**.
-- [ ] Acceptance 1: smoke run ≤ ~15 min excluding the one-time embedding.
+- [x] `./rag-bench --machine-class reference run --profile smoke` on real NQ — **M1 milestone reached 2026-09-29** (`benchmarks/results/2026-09-29-arcadedb-26.7.2-smoke/`, run with `--mode embedded,remote`, client CPUs 0-3, server CPUs 4-7, 8 GB heaps). Embedded, unmodified store, 26.7.2:
+  - load 100k in 59.8 s (1,673 docs/s), graph build 59.0 s, 376 MiB on disk;
+  - `dense`: nDCG@10 0.853, Recall@100 0.981, ANN recall@10 0.993, p50 31 ms / p99 42 ms;
+  - `hybrid-asis`: nDCG@10 **0.453** (vs 0.853 dense — S7 evidence), p50 111 ms / p99 178 ms; 2 queries empty: full-text parse errors on `/` (`ngn / ims`, `3/5 compromise`) — S8 evidence.
+  - Smoke nDCG is higher than published full-corpus NQ numbers because the tier contains every judged passage plus 100k − |judged| random ones (by design, PRD F3).
+- [ ] Acceptance 1: smoke run ≤ ~15 min excluding the one-time embedding. **Not met:** embedded-only ≈ 19 min estimated from the result (load + build 2 min, `dense` 2 passes × 3,452 × 33 ms ≈ 4 min, `hybrid-asis` 2 passes × 3,452 × 111 ms ≈ 13 min); hybrid dominates. Revisit after S7/S8 or by timing the run directly.
 - [ ] N1 on real data: two consecutive smoke runs give identical accuracy metrics.
+- [ ] Harness fixes found in the smoke run: (1) `git` commit/dirty are captured at the **end** of a run (the result shows the docs commit made during the run) — capture at start; (2) embedded ArcadeDB writes `log/arcadedb.log.*` into the working directory (repo root), which also marks the run dirty — point `arcadedb.server.logsDirectory` / the engine log dir at the data dir; (3) `peakHeapBytes` is G1 used-heap including garbage (~6 GB of an 8 GB pinned heap), not a live-set measure — label or measure after GC.

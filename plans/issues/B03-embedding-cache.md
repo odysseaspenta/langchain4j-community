@@ -35,7 +35,7 @@ Handoff estimate 100–400 passages/s on a many-core CPU → 2–7 h for 2.68M. 
 
 ### Deferred to the reference machine (owner request 2026-09-29: dev box too slow)
 At ~23 passages/s the smoke tier alone takes ~75 min here, so these acceptance runs wait for the reference machine (and B09 for standard):
-- [ ] Embed the full `smoke` tier (100k) and record throughput (acceptance "throughput number recorded").
+- [x] Embed the full `smoke` tier (100k) and record throughput — 2026-09-29, i7-9700K 8 threads: **95.3 passages/s**, 100k in 18 min; query embedding p50 5.4 ms / p99 10.9 ms (1 thread).
 - [ ] Real kill + restart during `embed`, then confirm the final checksum equals an uninterrupted run in a second data dir (unit-tested with the fake model only).
 - [ ] Confirm a cache built with 1-thread sessions matches the stock model on a larger sample (`--verify 200`).
 - Note: the dev box's cache at `~/.cache/langchain4j-rag-benchmark/embeddings/nq/seed-42/bge-small-en-v1.5` holds 3,800 rows built in several runs with different thread settings; it is valid but not a reference artefact.
