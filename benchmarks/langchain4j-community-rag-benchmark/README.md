@@ -44,7 +44,7 @@ Raw results under `benchmarks/results/` are git-ignored; only `report.md` and `*
 |---|---|
 | `info` | Prints resolved configuration and the ArcadeDB version under test |
 | `prepare [--dataset nq]` | Downloads and verifies the dataset (resumable), builds tier id lists |
-| `embed` | Pending — B03 |
+| `embed [--tier t \| --rows n] [--threads n] [--verify n]` | Embeds passages (priority order, resumable) and test queries into the embedding cache |
 | `ground-truth` | Pending — B04 |
 | `run --profile smoke\|canonical\|extended` | Pending — B07 |
 | `compare <result.json>...` | Pending — B15 |
@@ -57,6 +57,7 @@ Pending commands exit with code 3 and name their issue.
 datasets/nq/raw/                    corpus.jsonl, queries.jsonl, qrels/test.tsv (mteb/nq, pinned revision + SHA-256)
 datasets/nq/manifest.json           counts and file checksums (no paths/timestamps; its checksum identifies the data)
 datasets/nq/tiers/seed-42/          priority.ids, smoke.ids, standard.ids, full.ids, manifest.json
+embeddings/nq/seed-42/bge-small-en-v1.5/  passages.{f32,ids,json}, queries.{f32,ids,json} (little-endian float32 rows)
 ```
 
 `priority.ids` is the embedding-cache order: relevant passages first, then the rest shuffled; each tier is a prefix of it, so `smoke ⊂ standard ⊂ full`. `<tier>.ids` lists the same members shuffled again: this is the order passages are loaded into a store. See `TierSampler` for the exact algorithm.
