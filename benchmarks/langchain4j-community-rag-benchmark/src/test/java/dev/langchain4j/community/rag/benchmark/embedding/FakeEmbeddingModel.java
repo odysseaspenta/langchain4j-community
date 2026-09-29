@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class FakeEmbeddingModel implements EmbeddingModel {
 
-    static final int DIMENSION = 8;
+    public static final int DIMENSION = 8;
 
     public final AtomicInteger embedded = new AtomicInteger();
     final int failAfter;
