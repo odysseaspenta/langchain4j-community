@@ -18,7 +18,7 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | ID | Title | Phase | Depends on | Status |
 |---|---|---|---|---|
 | [B00](B00-reference-machine-setup.md) | Reference machine setup | 0 Setup | — | ☐ |
-| [B01](B01-module-skeleton.md) | Benchmark module skeleton and build wiring | 1 Smoke path | — | ☐ |
+| [B01](B01-module-skeleton.md) | Benchmark module skeleton and build wiring | 1 Smoke path | — | ☐☑ |
 | [B02](B02-dataset-loader-and-tiers.md) | BEIR dataset loader, tier sampler, `bucket` metadata | 1 Smoke path | B01 | ☐ |
 | [B03](B03-embedding-cache.md) | Embedding cache (corpus + queries) | 1 Smoke path | B02 | ☐ |
 | [B04](B04-ground-truth.md) | Brute-force ground truth (plain + filtered) | 1 Smoke path | B03 | ☐ |

@@ -1,0 +1,6 @@
+# Raw benchmark output is never committed (PRD F21). Curated reports are the exception:
+# keep report.md and SVG charts, everything else under results/ stays local.
+results/**
+!results/**/
+!results/**/report.md
+!results/**/*.svg

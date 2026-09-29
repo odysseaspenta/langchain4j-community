@@ -349,6 +349,15 @@
             </modules>
         </profile>
 
+        <!-- Fork-only RAG benchmark (plans/arcadedb-rag-benchmark-prd.md). Opt-in with -Pbenchmarks;
+             needs JDK 21, which also activates jdk21-modules so the ArcadeDB store is in the reactor. -->
+        <profile>
+            <id>benchmarks</id>
+            <modules>
+                <module>benchmarks/langchain4j-community-rag-benchmark</module>
+            </modules>
+        </profile>
+
         <profile>
             <id>openrewrite</id>
             <!-- `mvn -P openrewrite org.openrewrite.maven:rewrite-maven-plugin:run` -->

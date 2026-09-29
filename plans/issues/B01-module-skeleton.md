@@ -21,3 +21,10 @@
 - `./mvnw verify` (no profile) does not build the module; `./mvnw -pl embedding-stores/langchain4j-community-arcadedb verify` unaffected (acceptance 8).
 - `./mvnw -Pbenchmarks -pl benchmarks/langchain4j-community-rag-benchmark -am package` builds and the CLI prints help.
 - `./mvnw -Pbenchmarks -Darcadedb.version=26.9.1 ...` compiles (or fails visibly) the store against that version.
+
+## Outcome (2026-09-28)
+- Module built with picocli CLI (`info`, `prepare`, `embed`, `ground-truth`, `run --profile`, `compare`, `help`); pending commands exit 3 naming their issue.
+- Runtime ArcadeDB version read from the engine jar (`com.arcadedb.Constants.getRawVersion()`), so `arcadedb.version` is the single source of truth for jar and Docker tag — no duplicate property in the benchmark POM.
+- Enforcer convergence rules are overridden in this module only: ArcadeDB (gson 2.14.0) and DJL via `langchain4j-embeddings` (gson 2.13.1) do not converge, and swapped ArcadeDB versions will bring their own transitive versions. Deploy/install/publish/javadoc/sources/revapi skipped.
+- Store-target package is `targets` (not `target`): the root `.gitignore` ignores every `target/` directory.
+- **Finding for S10:** the unmodified store compiles against ArcadeDB 26.9.1 (`-Darcadedb.version=26.9.1 -am package` succeeds); ITs against 26.9.1 not yet run.
