@@ -128,6 +128,13 @@ public class GroundTruth {
     }
 
     /**
+     * Returns the manifest of one ground-truth set.
+     */
+    public GroundTruthManifest manifest(Tier tier, Integer bucketsBelow) throws IOException {
+        return Json.read(dir.resolve(name(tier, bucketsBelow) + ".json"), GroundTruthManifest.class);
+    }
+
+    /**
      * Loads one ground-truth set; {@code bucketsBelow == null} is the unfiltered set.
      */
     public Neighbours load(Tier tier, Integer bucketsBelow) throws IOException {

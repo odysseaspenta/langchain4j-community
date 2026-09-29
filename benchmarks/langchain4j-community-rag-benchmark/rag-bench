@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Launches the benchmark with the JVM settings the PRD requires for measurements (N3):
+# pinned heap (-Xms = -Xmx), G1, and a GC log that is copied into the run's results directory.
+#   RAG_BENCH_HEAP  heap size (default 8g)       JAVA_HOME  JDK 21 (default: java on PATH)
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+jar="$(ls "$here"/target/langchain4j-community-rag-benchmark-*.jar 2>/dev/null | head -1 || true)"
+if [[ -z "$jar" ]]; then
+  echo "Build first: ./mvnw -Pbenchmarks -pl benchmarks/langchain4j-community-rag-benchmark -am package" >&2
+  exit 1
+fi
+java="${JAVA_HOME:+$JAVA_HOME/bin/}java"
+heap="${RAG_BENCH_HEAP:-8g}"
+gc_log="${TMPDIR:-/tmp}/rag-bench-gc-$$.log"
+# The run copies the GC log into its results directory; the temporary file is removed on exit.
+trap 'rm -f "$gc_log"' EXIT
+"$java" -Xms"$heap" -Xmx"$heap" -XX:+UseG1GC -XX:+AlwaysPreTouch \
+  -Xlog:gc*:file="$gc_log":time,uptime,level,tags \
+  -Drag.bench.gcLog="$gc_log" \
+  -jar "$jar" "$@"

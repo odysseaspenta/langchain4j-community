@@ -28,6 +28,7 @@ class InfoCommand implements Callable<Integer> {
         out.println("Data dir:         " + config.dataDir());
         out.println("Results dir:      " + config.resultsDir());
         out.println("Seed:             " + config.seed());
+        out.println("Machine class:    " + config.machineClass());
         out.flush();
         return 0;
     }

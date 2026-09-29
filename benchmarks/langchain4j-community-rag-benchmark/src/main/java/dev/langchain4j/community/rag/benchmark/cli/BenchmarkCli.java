@@ -56,6 +56,14 @@ public class BenchmarkCli implements Runnable {
                     "Seed for sampling and synthetic metadata (env RAG_BENCH_SEED, -Drag.bench.seed, default 42).")
     String seed;
 
+    @Option(
+            names = "--machine-class",
+            scope = INHERIT,
+            paramLabel = "<class>",
+            description = "reference | dev: dev results are marked as not comparable (env RAG_BENCH_MACHINE_CLASS,"
+                    + " -Drag.bench.machineClass, default dev).")
+    String machineClass;
+
     public static void main(String[] args) {
         System.exit(newCommandLine().execute(args));
     }
@@ -74,6 +82,7 @@ public class BenchmarkCli implements Runnable {
         putIfPresent(cli, Setting.DATA_DIR, dataDir);
         putIfPresent(cli, Setting.RESULTS_DIR, resultsDir);
         putIfPresent(cli, Setting.SEED, seed);
+        putIfPresent(cli, Setting.MACHINE_CLASS, machineClass);
         return BenchmarkConfig.resolve(cli, System.getProperties(), System.getenv(), Path.of(""));
     }
 

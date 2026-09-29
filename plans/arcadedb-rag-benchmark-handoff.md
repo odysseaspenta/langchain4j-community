@@ -9,6 +9,16 @@ Read this first when picking the work up on the implementation machine (human or
 - **2026-09-28:** PRD broken into issues under [`issues/`](issues/README.md) (pushed to `origin/arcadedb-rag-benchmark`). Full tier deferred to the end (PRD §5.1 A1). The reference machine is not yet available, so early implementation may start on a lower-spec development machine (PRD N2a) — see §4.
 - Nothing has been pushed upstream. These documents live only on the fork branch (see §2).
 
+### Status as of 2026-09-29 (dev box)
+- **Done (code + unit tests, 69 tests):** B01 skeleton, B02 dataset/tiers, B03 embedding cache, B04 ground truth, B05 metrics, B06 embedded ArcadeDB target, B07 runner + `smoke` profile + JSON/Markdown. See each issue's *Outcome* section.
+- **Deferred heavy runs** (dev box too slow; each issue has a *Deferred to the reference machine* checklist): B03 smoke embedding (100k), B04 smoke/standard ground truth, B06/B07 real smoke run (**M1 milestone**).
+- **Next:** B08 (remote Docker target), then B09 (standard embedding + ground truth).
+- **First steps on the faster machine:**
+  1. Build: `./mvnw -Pbenchmarks -pl benchmarks/langchain4j-community-rag-benchmark -am package -Dmaven.test.skip=false` (JDK 21; note `MAVEN_OPTS` may skip tests).
+  2. Run: `RAG_BENCH_DATA_DIR=/data/rag-bench RAG_BENCH_HEAP=8g benchmarks/langchain4j-community-rag-benchmark/rag-bench --machine-class reference run --profile smoke`. That downloads NQ, embeds the smoke tier (~100k passages), computes ground truth, loads ArcadeDB and writes results.
+  3. Tick the deferred checklists in B03, B04, B06 and B07.
+- **Early findings so far:** hybrid-asis looks worse than dense on a 2k-passage spot check (B06); the unmodified store compiles against ArcadeDB 26.9.1 (B01).
+
 ## 2. Git / repository strategy (keep benchmark out of upstream)
 
 - `origin` = the owner's fork `github.com/odysseaspenta/langchain4j-community`. There is no `upstream` remote on the dev box; add it where needed:

@@ -24,7 +24,7 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [B04](B04-ground-truth.md) | Brute-force ground truth (plain + filtered) | 1 Smoke path | B03 | ☐◐ code done; heavy runs deferred |
 | [B05](B05-metrics.md) | Metrics library (IR, ANN recall, latency stats) | 1 Smoke path | B01 | ☐☑ |
 | [B06](B06-arcadedb-target-embedded.md) | `BenchmarkTarget` + embedded `ArcadeDbTarget` | 1 Smoke path | B01 | ☐◐ code done; smoke-tier load deferred |
-| [B07](B07-runner-smoke-profile-json.md) | Runner, `smoke` profile, JSON results, trivial report | 1 Smoke path | B02–B06 | ☐ |
+| [B07](B07-runner-smoke-profile-json.md) | Runner, `smoke` profile, JSON results, trivial report | 1 Smoke path | B02–B06 | ☐◐ code done; real smoke run deferred |
 | [B08](B08-remote-target.md) | Remote (Docker) `ArcadeDbTarget` | 2 Scale-up | B06, B07 | ☐ |
 | [B09](B09-standard-embedding-and-ground-truth.md) | Standard-tier embedding cache + ground truth (run) | 2 Scale-up | B00, B03, B04 | ☐ |
 | [B10](B10-baseline-unmodified-store.md) | Baseline run on the unmodified store | 3 Baseline | B07, B08, B09 | ☐ |

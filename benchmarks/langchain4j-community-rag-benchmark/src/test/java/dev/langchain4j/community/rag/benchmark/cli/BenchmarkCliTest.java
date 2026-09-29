@@ -50,10 +50,18 @@ class BenchmarkCliTest {
 
     @Test
     void should_report_pending_subcommands_with_their_issue() {
-        int exitCode = execute("run", "--profile", "smoke");
+        int exitCode = execute("compare", "a.json", "b.json");
 
         assertThat(exitCode).isEqualTo(PendingCommand.EXIT_NOT_IMPLEMENTED);
-        assertThat(err.toString()).contains("B07-runner-smoke-profile-json.md");
+        assertThat(err.toString()).contains("B15-compare-report.md");
+    }
+
+    @Test
+    void should_report_profiles_that_are_not_implemented_yet() {
+        int exitCode = execute("run", "--profile", "canonical", "--data-dir", tmp.toString());
+
+        assertThat(exitCode).isEqualTo(RunCommand.EXIT_UNSUPPORTED);
+        assertThat(err.toString()).contains("B16-canonical-profile.md");
     }
 
     @Test

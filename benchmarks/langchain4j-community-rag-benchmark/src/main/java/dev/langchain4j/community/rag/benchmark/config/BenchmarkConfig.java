@@ -15,15 +15,19 @@ import java.util.Properties;
  * @param dataDir    where datasets, embedding caches, ground truth and databases live; must be outside the git repository
  * @param resultsDir where run results are written ({@code <resultsDir>/<date>-<arcadedb-version>-<profile>/})
  * @param seed       seed for every random choice (tier sampling, {@code bucket} metadata)
+ * @param machineClass {@code reference} for publishable numbers, {@code dev} otherwise (PRD N2a)
  */
-public record BenchmarkConfig(Path dataDir, Path resultsDir, long seed) {
+public record BenchmarkConfig(Path dataDir, Path resultsDir, long seed, String machineClass) {
 
     public static final long DEFAULT_SEED = 42L;
+    public static final String DEV = "dev";
+    public static final String REFERENCE = "reference";
 
     public enum Setting {
         DATA_DIR("rag.bench.dataDir", "RAG_BENCH_DATA_DIR"),
         RESULTS_DIR("rag.bench.resultsDir", "RAG_BENCH_RESULTS_DIR"),
-        SEED("rag.bench.seed", "RAG_BENCH_SEED");
+        SEED("rag.bench.seed", "RAG_BENCH_SEED"),
+        MACHINE_CLASS("rag.bench.machineClass", "RAG_BENCH_MACHINE_CLASS");
 
         private final String systemProperty;
         private final String environmentVariable;
@@ -65,13 +69,20 @@ public record BenchmarkConfig(Path dataDir, Path resultsDir, long seed) {
                 .map(value -> parseSeed(value))
                 .orElse(DEFAULT_SEED);
 
+        String machineClass =
+                lookup(Setting.MACHINE_CLASS, cli, properties, env).orElse(DEV);
+        if (!machineClass.equals(DEV) && !machineClass.equals(REFERENCE)) {
+            throw new IllegalArgumentException(
+                    "Machine class must be '" + DEV + "' or '" + REFERENCE + "', got '" + machineClass + "'");
+        }
+
         repoRoot.ifPresent(root -> {
             if (dataDir.startsWith(root)) {
                 throw new IllegalArgumentException("Data directory " + dataDir + " is inside the git repository " + root
                         + "; point " + Setting.DATA_DIR.environmentVariable() + " or --data-dir elsewhere");
             }
         });
-        return new BenchmarkConfig(dataDir, resultsDir, seed);
+        return new BenchmarkConfig(dataDir, resultsDir, seed, machineClass);
     }
 
     /**
