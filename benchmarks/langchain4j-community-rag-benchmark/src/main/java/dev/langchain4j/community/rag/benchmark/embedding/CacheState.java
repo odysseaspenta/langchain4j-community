@@ -1,5 +1,7 @@
 package dev.langchain4j.community.rag.benchmark.embedding;
 
+import dev.langchain4j.community.rag.benchmark.metrics.LatencyStats;
+
 /**
  * State of one cached vector set ({@code passages.json} / {@code queries.json}), rewritten after every committed
  * chunk. The identity fields decide whether the cache may be reused; {@code rows} and {@code idsBytes} say how much
@@ -25,7 +27,7 @@ public record CacheState(
         String idsSha256,
         Integer threads,
         Double throughput,
-        Latency latency) {
+        LatencyStats latency) {
 
     public static final int FORMAT_VERSION = 1;
 
@@ -61,7 +63,8 @@ public record CacheState(
                 latency);
     }
 
-    CacheState completed(String vectorsSha256, String idsSha256, Integer threads, Double throughput, Latency latency) {
+    CacheState completed(
+            String vectorsSha256, String idsSha256, Integer threads, Double throughput, LatencyStats latency) {
         return new CacheState(
                 formatVersion,
                 model,
@@ -80,9 +83,4 @@ public record CacheState(
                 throughput,
                 latency);
     }
-
-    /**
-     * Latency of embedding one query at a time on one thread, in milliseconds.
-     */
-    public record Latency(int samples, double mean, double p50, double p95, double p99, double max) {}
 }

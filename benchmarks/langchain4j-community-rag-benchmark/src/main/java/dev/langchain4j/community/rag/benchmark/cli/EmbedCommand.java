@@ -6,6 +6,7 @@ import dev.langchain4j.community.rag.benchmark.dataset.Tier;
 import dev.langchain4j.community.rag.benchmark.embedding.CacheState;
 import dev.langchain4j.community.rag.benchmark.embedding.EmbeddingCache;
 import dev.langchain4j.community.rag.benchmark.embedding.EmbeddingModelSpec;
+import dev.langchain4j.community.rag.benchmark.metrics.LatencyStats;
 import java.io.PrintWriter;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
@@ -65,7 +66,7 @@ class EmbedCommand implements Callable<Integer> {
         out.printf(
                 "Passages: %,d rows, %.1f passages/s (%d threads), sha256 %s%n",
                 passages.rows(), passages.throughput(), passages.threads(), passages.vectorsSha256());
-        CacheState.Latency latency = queries.latency();
+        LatencyStats latency = queries.latency();
         out.printf(
                 "Queries:  %,d rows, single-query latency p50 %.2f ms, p95 %.2f ms, p99 %.2f ms, sha256 %s%n",
                 queries.rows(), latency.p50(), latency.p95(), latency.p99(), queries.vectorsSha256());

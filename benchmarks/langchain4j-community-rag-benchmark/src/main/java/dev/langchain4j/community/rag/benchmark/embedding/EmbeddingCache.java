@@ -8,6 +8,7 @@ import dev.langchain4j.community.rag.benchmark.dataset.PassageReader;
 import dev.langchain4j.community.rag.benchmark.dataset.PreparedDataset;
 import dev.langchain4j.community.rag.benchmark.dataset.Qrels;
 import dev.langchain4j.community.rag.benchmark.dataset.Query;
+import dev.langchain4j.community.rag.benchmark.metrics.LatencyStats;
 import dev.langchain4j.community.rag.benchmark.util.Checksums;
 import dev.langchain4j.community.rag.benchmark.util.Json;
 import dev.langchain4j.data.embedding.Embedding;
@@ -169,7 +170,7 @@ public class EmbeddingCache {
                 sha256Prefix(file("queries.ids"), state.idsBytes()),
                 1,
                 queries.size() / seconds,
-                latency(nanos));
+                LatencyStats.ofNanos(nanos));
         Json.write(stateFile("queries"), state);
         log.info(
                 "Query embeddings: {} queries, p50 {} ms",
@@ -406,24 +407,6 @@ public class EmbeddingCache {
                 targetRows,
                 String.format("%.1f", rate),
                 etaSeconds / 60);
-    }
-
-    private static CacheState.Latency latency(long[] nanos) {
-        long[] sorted = nanos.clone();
-        Arrays.sort(sorted);
-        double mean = Arrays.stream(sorted).average().orElse(0) / 1e6;
-        return new CacheState.Latency(
-                sorted.length,
-                mean,
-                percentile(sorted, 0.50),
-                percentile(sorted, 0.95),
-                percentile(sorted, 0.99),
-                sorted[sorted.length - 1] / 1e6);
-    }
-
-    private static double percentile(long[] sorted, double p) {
-        int index = (int) Math.ceil(p * sorted.length) - 1;
-        return sorted[Math.max(0, index)] / 1e6;
     }
 
     private static ThreadFactory daemonThreads() {

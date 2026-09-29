@@ -11,10 +11,10 @@ Requires JDK 21. The module is only in the reactor with the `benchmarks` profile
 
 ```shell
 ./mvnw -Pbenchmarks -pl benchmarks/langchain4j-community-rag-benchmark -am clean package
-java -jar benchmarks/langchain4j-community-rag-benchmark/target/langchain4j-community-rag-benchmark-*.jar --help
+$JAVA_HOME/bin/java -jar benchmarks/langchain4j-community-rag-benchmark/target/langchain4j-community-rag-benchmark-*.jar --help
 ```
 
-`package` produces the jar plus its runtime dependencies in `target/lib/`.
+`package` produces the jar plus its runtime dependencies in `target/lib/`. Run it with a JDK 21 `java` (the one on `PATH` may be older).
 
 ### Choosing the ArcadeDB version
 
