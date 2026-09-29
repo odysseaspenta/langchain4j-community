@@ -11,18 +11,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Deterministic, normalised pseudo-embeddings derived from the text; counts calls and can fail after a budget.
  */
-class FakeEmbeddingModel implements EmbeddingModel {
+public class FakeEmbeddingModel implements EmbeddingModel {
 
     static final int DIMENSION = 8;
 
-    final AtomicInteger embedded = new AtomicInteger();
+    public final AtomicInteger embedded = new AtomicInteger();
     final int failAfter;
 
-    FakeEmbeddingModel(int failAfter) {
+    public FakeEmbeddingModel(int failAfter) {
         this.failAfter = failAfter;
     }
 
-    static EmbeddingModelSpec spec(String queryPrefix, FakeEmbeddingModel model) {
+    public static EmbeddingModelSpec spec(String queryPrefix, FakeEmbeddingModel model) {
         return new EmbeddingModelSpec(
                 "fake", DIMENSION, "fake-model.bin", queryPrefix, "", (executor, callers) -> model);
     }

@@ -21,7 +21,7 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [B01](B01-module-skeleton.md) | Benchmark module skeleton and build wiring | 1 Smoke path | — | ☐☑ |
 | [B02](B02-dataset-loader-and-tiers.md) | BEIR dataset loader, tier sampler, `bucket` metadata | 1 Smoke path | B01 | ☐☑ |
 | [B03](B03-embedding-cache.md) | Embedding cache (corpus + queries) | 1 Smoke path | B02 | ☐◐ code done; heavy runs deferred |
-| [B04](B04-ground-truth.md) | Brute-force ground truth (plain + filtered) | 1 Smoke path | B03 | ☐ |
+| [B04](B04-ground-truth.md) | Brute-force ground truth (plain + filtered) | 1 Smoke path | B03 | ☐◐ code done; heavy runs deferred |
 | [B05](B05-metrics.md) | Metrics library (IR, ANN recall, latency stats) | 1 Smoke path | B01 | ☐ |
 | [B06](B06-arcadedb-target-embedded.md) | `BenchmarkTarget` + embedded `ArcadeDbTarget` | 1 Smoke path | B01 | ☐ |
 | [B07](B07-runner-smoke-profile-json.md) | Runner, `smoke` profile, JSON results, trivial report | 1 Smoke path | B02–B06 | ☐ |

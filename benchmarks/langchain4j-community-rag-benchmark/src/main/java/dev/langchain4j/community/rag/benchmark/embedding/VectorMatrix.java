@@ -70,6 +70,23 @@ public final class VectorMatrix implements AutoCloseable {
         segments[row / rowsPerSegment].get((row % rowsPerSegment) * dimension, destination, 0, dimension);
     }
 
+    /**
+     * Copies {@code count} consecutive rows starting at {@code from} into {@code destination} (row-major).
+     */
+    public void getRows(int from, int count, float[] destination) {
+        if (from < 0 || count < 0 || from + count > rows) {
+            throw new IndexOutOfBoundsException("rows " + from + ".." + (from + count) + " of " + rows);
+        }
+        int copied = 0;
+        while (copied < count) {
+            int row = from + copied;
+            int inSegment = Math.min(count - copied, rowsPerSegment - row % rowsPerSegment);
+            segments[row / rowsPerSegment].get(
+                    (row % rowsPerSegment) * dimension, destination, copied * dimension, inSegment * dimension);
+            copied += inSegment;
+        }
+    }
+
     public float[] get(int row) {
         float[] vector = new float[dimension];
         get(row, vector);
