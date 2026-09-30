@@ -26,5 +26,5 @@
 
 ### Deferred to the reference machine
 - [x] Smoke-tier ground truth on real NQ embeddings, then rerun to confirm a cache hit — 2026-09-29; the `run` step logged "Ground truth for [SMOKE] is up to date".
-- [ ] Standard-tier (1M) plain + filtered ground truth — part of B09.
-- [ ] Record brute-force wall time per tier (sizing input for B09/B22). Smoke: **14.6 s** (3,452 × 100k, plain + bucket < 1/10/50 in one pass, 8 threads); standard in B09.
+- [x] Standard-tier (1M) plain + filtered ground truth — B09, 2026-09-30: 115.7 s for smoke + standard in one pass.
+- [x] Record brute-force wall time per tier (sizing input for B09/B22). Standard (with smoke, one pass): **115.7 s**; smoke alone: **14.6 s** (3,452 × 100k, plain + bucket < 1/10/50 in one pass, 8 threads); standard in B09.

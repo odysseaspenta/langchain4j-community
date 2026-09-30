@@ -109,7 +109,7 @@ class EmbedCommand implements Callable<Integer> {
                 "Passages: %,d rows, %.1f passages/s (%s), sha256 %s%n",
                 passages.rows(),
                 passages.throughput(),
-                passages.threads() == null ? backend : passages.threads() + " threads",
+                lastBackend(passages),
                 passages.vectorsSha256());
         LatencyStats latency = queries.latency();
         out.printf(
@@ -130,5 +130,16 @@ class EmbedCommand implements Callable<Integer> {
         }
         out.flush();
         return exitCode;
+    }
+
+    /** Describes the run that last added rows (not this command's --backend: the cache may already be complete). */
+    private static String lastBackend(CacheState passages) {
+        if (passages.segments() == null || passages.segments().isEmpty()) {
+            return CacheState.IN_PROCESS + (passages.threads() == null ? "" : ", " + passages.threads() + " threads");
+        }
+        CacheState.Segment last = passages.segments().get(passages.segments().size() - 1);
+        Object threads = last.details().get("threads");
+        return "last run: " + last.backend() + " for rows " + last.fromRow() + ".." + last.toRow()
+                + (threads == null ? "" : ", " + threads + " threads");
     }
 }
