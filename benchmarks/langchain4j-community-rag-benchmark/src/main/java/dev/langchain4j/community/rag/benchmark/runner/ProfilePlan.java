@@ -22,6 +22,14 @@ public record ProfilePlan(
                         List.of(Scenario.DENSE, Scenario.HYBRID_AS_IS),
                         100,
                         1);
+            case BASELINE ->
+                new ProfilePlan(
+                        profile,
+                        List.of(Tier.SMOKE, Tier.STANDARD),
+                        List.of(TargetMode.EMBEDDED, TargetMode.REMOTE),
+                        List.of(Scenario.DENSE, Scenario.HYBRID_AS_IS),
+                        100,
+                        3);
             case CANONICAL ->
                 throw new UnsupportedOperationException(
                         "The canonical profile is not implemented yet; see plans/issues/B16-canonical-profile.md");
