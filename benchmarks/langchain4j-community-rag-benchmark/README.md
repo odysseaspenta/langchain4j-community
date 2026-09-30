@@ -75,7 +75,7 @@ Raw results under `benchmarks/results/` are git-ignored; only `report.md` and `*
 |---|---|
 | `info` | Prints resolved configuration and the ArcadeDB version under test |
 | `prepare [--dataset nq]` | Downloads and verifies the dataset (resumable), builds tier id lists |
-| `embed [--tier t \| --rows n] [--threads n] [--verify n]` | Embeds passages (priority order, resumable) and test queries into the embedding cache |
+| `embed [--tier t \| --rows n] [--threads n] [--verify n] [--backend in-process\|server]` | Embeds passages (priority order, resumable) and test queries into the embedding cache; `--backend server` uses the GPU embedding server in [`gpu-embedder/`](gpu-embedder/README.md) for passages (PRD A4) |
 | `ground-truth [--tier smoke,standard,...] [--k 100]` | Exact top-k per query and tier, unfiltered and `bucket < 1/10/50`, in one pass |
 | `run --profile smoke [--mode embedded,remote] [--load-time-cap-minutes n] [--keep-databases]` | Full path: prepare → embed → ground truth → load → scenarios → `result.json` + `report.md` (canonical/extended: B16/B20) |
 | `compare <result.json>...` | Pending — B15 |

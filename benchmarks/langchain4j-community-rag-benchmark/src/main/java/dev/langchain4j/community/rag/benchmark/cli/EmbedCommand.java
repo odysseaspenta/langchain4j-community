@@ -6,8 +6,11 @@ import dev.langchain4j.community.rag.benchmark.dataset.Tier;
 import dev.langchain4j.community.rag.benchmark.embedding.CacheState;
 import dev.langchain4j.community.rag.benchmark.embedding.EmbeddingCache;
 import dev.langchain4j.community.rag.benchmark.embedding.EmbeddingModelSpec;
+import dev.langchain4j.community.rag.benchmark.embedding.EmbeddingServer;
 import dev.langchain4j.community.rag.benchmark.metrics.LatencyStats;
 import java.io.PrintWriter;
+import java.net.URI;
+import java.time.Duration;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
@@ -44,10 +47,34 @@ class EmbedCommand implements Callable<Integer> {
     Integer threads;
 
     @Option(
+            names = "--backend",
+            defaultValue = "in-process",
+            paramLabel = "<backend>",
+            description = "Passage embedding backend: in-process (LangChain4j ONNX on the CPU) or server (an embedding"
+                    + " server with the same model, PRD A4; see gpu-embedder/). Queries are always in-process."
+                    + " Default: in-process.")
+    String backend;
+
+    @Option(
+            names = "--endpoint",
+            defaultValue = "http://127.0.0.1:8080",
+            paramLabel = "<url>",
+            description = "Embedding server for --backend server (default: ${DEFAULT-VALUE}).")
+    URI endpoint;
+
+    @Option(
+            names = "--server-batch",
+            defaultValue = "" + EmbeddingCache.DEFAULT_SERVER_BATCH,
+            paramLabel = "<n>",
+            description = "Passages per server request (default: ${DEFAULT-VALUE}).")
+    int serverBatch;
+
+    @Option(
             names = "--verify",
             defaultValue = "20",
             paramLabel = "<n>",
-            description = "Re-embed n random cached passages and require exact equality (default: 20; 0 = skip).")
+            description = "Re-embed n random cached passages in-process: rows embedded in-process must be identical,"
+                    + " rows from an embedding server must have cosine >= 0.999 (default: 20; 0 = skip).")
     int verify;
 
     @Override
@@ -58,14 +85,32 @@ class EmbedCommand implements Callable<Integer> {
         int target = rows != null ? rows : tier.size(prepared.manifest().passages());
         int threadCount = threads != null ? threads : Runtime.getRuntime().availableProcessors();
 
-        CacheState passages = cache.embedPassages(target, threadCount);
+        CacheState passages;
+        switch (backend) {
+            case "in-process" -> passages = cache.embedPassages(target, threadCount);
+            case "server" ->
+                passages = cache.embedPassagesRemote(
+                        target,
+                        threadCount,
+                        new EmbeddingServer(endpoint, Duration.ofMinutes(10)),
+                        EmbeddingServer.HubModel.BGE_SMALL_EN_V15,
+                        serverBatch,
+                        EmbeddingCache.DEFAULT_SERVER_WINDOW);
+            default -> {
+                spec.commandLine().getErr().println("Unknown backend '" + backend + "': use in-process or server");
+                return 2;
+            }
+        }
         CacheState queries = cache.embedQueries();
 
         PrintWriter out = spec.commandLine().getOut();
         out.printf("Cache: %s%n", cache.dir());
         out.printf(
-                "Passages: %,d rows, %.1f passages/s (%d threads), sha256 %s%n",
-                passages.rows(), passages.throughput(), passages.threads(), passages.vectorsSha256());
+                "Passages: %,d rows, %.1f passages/s (%s), sha256 %s%n",
+                passages.rows(),
+                passages.throughput(),
+                passages.threads() == null ? backend : passages.threads() + " threads",
+                passages.vectorsSha256());
         LatencyStats latency = queries.latency();
         out.printf(
                 "Queries:  %,d rows, single-query latency p50 %.2f ms, p95 %.2f ms, p99 %.2f ms, sha256 %s%n",
@@ -74,8 +119,13 @@ class EmbedCommand implements Callable<Integer> {
         if (verify > 0) {
             EmbeddingCache.VerifyResult result = cache.verifyPassages(verify, config.seed());
             out.printf(
-                    "Verify:   %d sampled passages re-embedded, %d mismatches, max |diff| %.3g%n",
-                    result.samples(), result.mismatches(), result.maxAbsDiff());
+                    "Verify:   %d sampled passages re-embedded in-process (%d from a server), %d mismatches,"
+                            + " max |diff| %.3g, min cosine %.7f%n",
+                    result.samples(),
+                    result.serverRows(),
+                    result.mismatches(),
+                    result.maxAbsDiff(),
+                    result.minCosine());
             exitCode = result.mismatches() == 0 ? 0 : 1;
         }
         out.flush();

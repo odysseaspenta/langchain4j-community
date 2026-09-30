@@ -1,0 +1,9 @@
+# Versions that passed the B09a compliance gate (2026-09-29/30). torch comes from the image (ROCm build); do not add it.
+sentence-transformers==3.4.1
+transformers==4.57.6
+tokenizers==0.22.2
+huggingface_hub==0.36.2
+safetensors==0.8.0
+fastapi==0.142.0
+uvicorn==0.54.0
+pydantic==2.13.5

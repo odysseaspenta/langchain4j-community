@@ -25,9 +25,13 @@ import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -109,7 +113,8 @@ public class EmbeddingCache {
                     }
                     List<Embedding> embeddings = model.embedAll(segments).content();
                     long idsBytes = write(vectors, ids, chunkIds, embeddings);
-                    state = state.committed(startRows + to, state.idsBytes() + idsBytes);
+                    state = state.committed(startRows + to, state.idsBytes() + idsBytes)
+                            .withSegment(startRows, startRows + to, CacheState.IN_PROCESS, Map.of("threads", threads));
                     Json.write(stateFile("passages"), state);
                     logProgress(startRows, state.rows(), targetRows, start);
                 }
@@ -117,7 +122,12 @@ public class EmbeddingCache {
                 executor.shutdownNow();
             }
         }
-        double seconds = (System.nanoTime() - start) / 1e9;
+        return completePassages(state, startRows, start, threads);
+    }
+
+    private CacheState completePassages(CacheState state, int startRows, long startNanos, Integer threads)
+            throws IOException {
+        double seconds = (System.nanoTime() - startNanos) / 1e9;
         Double throughput = state.rows() > startRows ? (state.rows() - startRows) / seconds : state.throughput();
         state = state.completed(
                 sha256Prefix(file("passages.f32"), (long) state.rows() * spec.dimension() * Float.BYTES),
@@ -128,6 +138,203 @@ public class EmbeddingCache {
         Json.write(stateFile("passages"), state);
         log.info("Passage embeddings: {} rows, {} passages/s", state.rows(), String.format("%.1f", throughput));
         return state;
+    }
+
+    /** Rows sent to the server per request. */
+    public static final int DEFAULT_SERVER_BATCH = 128;
+
+    /**
+     * Rows read, sorted by length and committed together when embedding through a server. Sorting lets each request
+     * pad to little more than its own texts (random batches pad to the longest and ran ~2.5× slower).
+     */
+    public static final int DEFAULT_SERVER_WINDOW = 8192;
+
+    /** Minimum cosine between server and in-process vectors in the start-up check (PRD A4). */
+    public static final double MIN_SERVER_COSINE = 0.999;
+
+    /** Rows re-embedded in-process in the start-up check. */
+    static final int SERVER_CHECK_ROWS = 64;
+
+    /**
+     * Like {@link #embedPassages(int, int)}, but through an external embedding server (PRD A4, B09a). Before writing
+     * anything it checks that the server runs {@code expected} and that its vectors for a sample of the rows to embed
+     * match the in-process model (cosine ≥ {@link #MIN_SERVER_COSINE}). Texts the server refuses (over 512 tokens) are
+     * embedded in-process, as the in-process model splits and averages them. Rows are committed per window of
+     * {@code window} rows aligned to absolute row numbers, so an interrupted run resumes at a window boundary and
+     * produces the same rows as an uninterrupted one. Queries are always embedded in-process ({@link #embedQueries}).
+     *
+     * @param threads threads for the in-process model (start-up check and refused texts)
+     */
+    public CacheState embedPassagesRemote(
+            int targetRows,
+            int threads,
+            EmbeddingServer server,
+            EmbeddingServer.HubModel expected,
+            int batchSize,
+            int window)
+            throws IOException, InterruptedException {
+        List<String> order = dataset.priorityOrder();
+        if (targetRows > order.size()) {
+            throw new IllegalArgumentException(targetRows + " rows requested, corpus has " + order.size());
+        }
+        CacheState state = resume(
+                "passages",
+                identity(spec.passagePrefix(), dataset.tiers().priority().sha256()));
+        if (state.rows() >= targetRows && state.vectorsSha256() != null) {
+            log.info("Passage embeddings already cover {} rows", state.rows());
+            return state;
+        }
+        int startRows = state.rows();
+        if (startRows >= targetRows) {
+            return completePassages(state, startRows, System.nanoTime(), null);
+        }
+
+        Map<String, Object> health = server.requireModel(expected);
+        log.info("Embedding passages {}..{} through {} ({}), in-process fallback with {} threads",
+                startRows, targetRows, server.endpoint(), health, threads);
+        ExecutorService executor = Executors.newFixedThreadPool(threads, daemonThreads());
+        long start = System.nanoTime();
+        try (PassageReader reader = PassageReader.open(
+                        dataset.dataset().dir().resolve(BeirDataset.CORPUS), order.subList(startRows, targetRows));
+                FileChannel vectors = append("passages.f32");
+                FileChannel ids = append("passages.ids")) {
+            EmbeddingModel inProcess = spec.factory().create(executor, threads);
+            double checkCosine = checkServer(server, inProcess, reader, Math.min(window, reader.size()));
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("endpoint", server.endpoint().toString());
+            details.put("health", health);
+            details.put("batchSize", batchSize);
+            details.put("window", window);
+            details.put("startupCheckRows", SERVER_CHECK_ROWS);
+            details.put("startupCheckMinCosine", checkCosine);
+            int inProcessRows = 0;
+
+            int row = startRows;
+            while (row < targetRows) {
+                int end = Math.min((row / window + 1) * window, targetRows);
+                List<String> chunkIds = new ArrayList<>(end - row);
+                List<String> texts = new ArrayList<>(end - row);
+                for (int r = row; r < end; r++) {
+                    Passage passage = reader.read(r - startRows);
+                    chunkIds.add(passage.id());
+                    texts.add(spec.passagePrefix() + passage.content());
+                }
+                float[][] embedded = new float[texts.size()][];
+                List<Integer> refused = new ArrayList<>();
+                List<Integer> byLength = new ArrayList<>(texts.size());
+                for (int i = 0; i < texts.size(); i++) {
+                    byLength.add(i);
+                }
+                byLength.sort(Comparator.comparingInt((Integer i) -> texts.get(i).length())
+                        .thenComparingInt(i -> i));
+                for (int from = 0; from < byLength.size(); from += batchSize) {
+                    List<Integer> batch = byLength.subList(from, Math.min(from + batchSize, byLength.size()));
+                    EmbeddingServer.Result result =
+                            server.embed(batch.stream().map(texts::get).toList());
+                    for (int b = 0; b < batch.size(); b++) {
+                        embedded[batch.get(b)] = result.vectors()[b];
+                    }
+                    result.refused().forEach(b -> refused.add(batch.get(b)));
+                }
+                if (!refused.isEmpty()) {
+                    Collections.sort(refused);
+                    List<Embedding> local = inProcess
+                            .embedAll(refused.stream()
+                                    .map(i -> TextSegment.from(texts.get(i)))
+                                    .toList())
+                            .content();
+                    for (int i = 0; i < refused.size(); i++) {
+                        embedded[refused.get(i)] = local.get(i).vector();
+                    }
+                    inProcessRows += refused.size();
+                }
+                List<Embedding> embeddings = new ArrayList<>(embedded.length);
+                for (float[] vector : embedded) {
+                    embeddings.add(Embedding.from(vector));
+                }
+                long idsBytes = write(vectors, ids, chunkIds, embeddings);
+                details.put("inProcessRows", inProcessRows);
+                state = state.committed(end, state.idsBytes() + idsBytes)
+                        .withSegment(startRows, end, CacheState.HTTP, new LinkedHashMap<>(details));
+                Json.write(stateFile("passages"), state);
+                logRemoteProgress(startRows, end, targetRows, start, inProcessRows);
+                row = end;
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+        return completePassages(state, startRows, start, null);
+    }
+
+    /**
+     * Embeds a sample of the first {@code rows} rows of {@code reader} with both the server and the in-process model
+     * (half random, half the longest) and returns the lowest cosine; fails below {@link #MIN_SERVER_COSINE}.
+     */
+    private double checkServer(EmbeddingServer server, EmbeddingModel inProcess, PassageReader reader, int rows)
+            throws IOException, InterruptedException {
+        List<String> texts = new ArrayList<>(rows);
+        for (int i = 0; i < rows; i++) {
+            texts.add(spec.passagePrefix() + reader.read(i).content());
+        }
+        List<Integer> candidates = new ArrayList<>();
+        for (int i = 0; i < rows; i++) {
+            candidates.add(i);
+        }
+        Collections.shuffle(candidates, new Random(dataset.tiers().seed()));
+        Set<Integer> sample = new LinkedHashSet<>(candidates.subList(0, Math.min(SERVER_CHECK_ROWS / 2, rows)));
+        candidates.sort(Comparator.comparingInt((Integer i) -> texts.get(i).length()).reversed());
+        for (int i : candidates) {
+            if (sample.size() >= Math.min(SERVER_CHECK_ROWS, rows)) {
+                break;
+            }
+            sample.add(i);
+        }
+        List<String> sampleTexts = sample.stream().map(texts::get).toList();
+        EmbeddingServer.Result remote = server.embed(sampleTexts);
+        List<Embedding> local = inProcess
+                .embedAll(sampleTexts.stream().map(TextSegment::from).toList())
+                .content();
+        double min = 1;
+        int compared = 0;
+        for (int i = 0; i < sampleTexts.size(); i++) {
+            float[] r = remote.vectors()[i];
+            if (r == null) {
+                continue; // refused: embedded in-process anyway
+            }
+            min = Math.min(min, cosine(r, local.get(i).vector()));
+            compared++;
+        }
+        log.info("Start-up check: {} of {} sampled passages compared, min cosine {}",
+                compared, sampleTexts.size(), String.format("%.7f", min));
+        if (compared == 0 || min < MIN_SERVER_COSINE) {
+            throw new IOException("Embedding server vectors do not match the in-process model: min cosine " + min
+                    + " over " + compared + " passages (required ≥ " + MIN_SERVER_COSINE + ")");
+        }
+        return min;
+    }
+
+    static double cosine(float[] a, float[] b) {
+        double dot = 0;
+        double na = 0;
+        double nb = 0;
+        for (int d = 0; d < a.length; d++) {
+            dot += (double) a[d] * b[d];
+            na += (double) a[d] * a[d];
+            nb += (double) b[d] * b[d];
+        }
+        return dot / Math.sqrt(na * nb);
+    }
+
+    private static void logRemoteProgress(int startRows, int rows, int targetRows, long startNanos, int inProcess) {
+        double seconds = (System.nanoTime() - startNanos) / 1e9;
+        double rate = (rows - startRows) / seconds;
+        log.info(
+                "Embedded {}/{} passages, {} passages/s, {} in-process, ETA {} min",
+                rows,
+                targetRows,
+                String.format("%.1f", rate),
+                inProcess,
+                Math.round((targetRows - rows) / rate) / 60);
     }
 
     /**
@@ -198,21 +405,34 @@ public class EmbeddingCache {
                         rows.stream().map(ids::get).toList())) {
             EmbeddingModel model = spec.factory().create(executor, 1);
             int mismatches = 0;
+            int serverRows = 0;
             double maxAbsDiff = 0;
+            double minCosine = 1;
             for (int i = 0; i < rows.size(); i++) {
                 float[] fresh = model.embed(
                                 spec.passagePrefix() + reader.read(i).content())
                         .content()
                         .vector();
                 float[] cached = matrix.get(rows.get(i));
-                if (!Arrays.equals(fresh, cached)) {
-                    mismatches++;
+                double cos = cosine(fresh, cached);
+                minCosine = Math.min(minCosine, cos);
+                if (CacheState.IN_PROCESS.equals(state.backendOf(rows.get(i)))) {
+                    // Same model and runtime: bit-identical.
+                    if (!Arrays.equals(fresh, cached)) {
+                        mismatches++;
+                    }
+                } else {
+                    // Embedded by a server (PRD A4): same weights, different kernels.
+                    serverRows++;
+                    if (cos < MIN_SERVER_COSINE) {
+                        mismatches++;
+                    }
                 }
                 for (int d = 0; d < fresh.length; d++) {
                     maxAbsDiff = Math.max(maxAbsDiff, Math.abs(fresh[d] - cached[d]));
                 }
             }
-            return new VerifyResult(rows.size(), mismatches, maxAbsDiff);
+            return new VerifyResult(rows.size(), mismatches, maxAbsDiff, serverRows, minCosine);
         } finally {
             executor.shutdownNow();
         }
@@ -244,7 +464,12 @@ public class EmbeddingCache {
         return Json.read(file, CacheState.class);
     }
 
-    public record VerifyResult(int samples, int mismatches, double maxAbsDiff) {}
+    /**
+     * @param mismatches rows embedded in-process that are not bit-identical, plus server rows below
+     *                   {@link #MIN_SERVER_COSINE}
+     * @param serverRows sampled rows that an embedding server produced
+     */
+    public record VerifyResult(int samples, int mismatches, double maxAbsDiff, int serverRows, double minCosine) {}
 
     private List<String> readIds(String name) throws IOException {
         CacheState state = readState(name);
@@ -265,6 +490,7 @@ public class EmbeddingCache {
                 orderSha256,
                 0,
                 0,
+                null,
                 null,
                 null,
                 null,
