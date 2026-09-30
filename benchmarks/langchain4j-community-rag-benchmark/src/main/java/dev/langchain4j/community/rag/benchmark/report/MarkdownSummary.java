@@ -66,9 +66,9 @@ public final class MarkdownSummary {
 
         md.append("\n## Load\n\n")
                 .append(
-                        "| Target | Tier | Loaded | Load s | Docs/s | Time to searchable s | Disk MiB | Peak heap MiB"
-                                + " | Server peak MiB |\n")
-                .append("|---|---|---|---|---|---|---|---|---|\n");
+                        "| Target | Tier | Loaded | Load s | Docs/s | Time to searchable s | Disk MiB | Live heap MiB"
+                                + " | Peak heap MiB (incl. garbage) | Server peak MiB |\n")
+                .append("|---|---|---|---|---|---|---|---|---|---|\n");
         for (RunResult.TargetRun run : result.runs()) {
             LoadStats load = run.load();
             md.append("| ")
@@ -93,6 +93,8 @@ public final class MarkdownSummary {
                     .append(" | ")
                     .append(num(load.diskBytes() / 1048576.0, 0))
                     .append(" | ")
+                    .append(load.liveHeapBytes() < 0 ? "–" : num(load.liveHeapBytes() / 1048576.0, 0))
+                    .append(" | ")
                     .append(num(load.peakHeapBytes() / 1048576.0, 0))
                     .append(" | ")
                     .append(load.serverPeakMemoryBytes() < 0 ? "–" : num(load.serverPeakMemoryBytes() / 1048576.0, 0))
@@ -114,8 +116,8 @@ public final class MarkdownSummary {
                         .append(run.targetConfig().get("clientCpus"))
                         .append(", query timeout ")
                         .append(run.targetConfig().get("queryTimeoutMillis"))
-                        .append(" ms. Time to searchable = `REBUILD INDEX` (upper bound; embedded builds the graph"
-                                + " only).\n");
+                        .append(" ms. Time to searchable = until a probe query succeeds and the server is idle"
+                                + " (embedded: forced graph build).\n");
             }
             if (run.targetConfig().get("isolationWarnings") instanceof List<?> warnings && !warnings.isEmpty()) {
                 md.append("\n> **Isolation warning (")

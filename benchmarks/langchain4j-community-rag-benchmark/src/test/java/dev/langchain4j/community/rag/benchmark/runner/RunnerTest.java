@@ -164,7 +164,7 @@ class RunnerTest {
         BenchmarkConfig config = new BenchmarkConfig(dataDir, resultsDir, 42, BenchmarkConfig.DEV);
         ProfilePlan remotePlan = plan.withModes(List.of(TargetMode.REMOTE));
         RemoteSettings remote = new RemoteSettings(
-                ArcadeDbVersion.dockerImage(), CpuSet.online().upperHalf(), "1g", Duration.ofSeconds(30));
+                ArcadeDbVersion.dockerImage(), CpuSet.online().upperHalf(), "1g", Duration.ofSeconds(25));
         Runner.TargetFactory factory = (tier, mode) -> ArcadeDbTarget.remote(
                 dataDir.resolve("server"), ArcadeDbSettings.pinned(FakeEmbeddingModel.DIMENSION), remote);
 
@@ -195,7 +195,7 @@ class RunnerTest {
 
         @Override
         public LoadStats load(DocumentSource source, LoadOptions options) {
-            return new LoadStats(source.size(), 0, false, 0, 0, 0, 0, -1, 0, -1);
+            return new LoadStats(source.size(), 0, false, 0, 0, 0, 0, -1, 0, 0, -1);
         }
 
         @Override

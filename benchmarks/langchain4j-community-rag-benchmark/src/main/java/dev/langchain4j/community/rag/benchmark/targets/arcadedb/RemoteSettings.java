@@ -15,7 +15,23 @@ import java.time.Duration;
 public record RemoteSettings(String image, CpuSet serverCpus, String serverHeap, Duration queryTimeout) {
 
     public static final String DEFAULT_HEAP = "4g";
-    public static final Duration DEFAULT_QUERY_TIMEOUT = Duration.ofSeconds(30);
+    /**
+     * Upper bound for {@code queryTimeout}. The ArcadeDB 26.7.2 Java client ({@code RemoteHttpComponent}) always uses
+     * HTTP/2, and the server closes an HTTP/2 connection 30 s into a request ({@code EOFException} on the client;
+     * HTTP/1.1 requests are not cut). A longer server timeout would never be reached: the client sees a dropped
+     * connection and the query keeps running on the server.
+     */
+    public static final Duration MAX_QUERY_TIMEOUT = Duration.ofSeconds(29);
+
+    /** Ends slow queries on the server a little before the 30 s connection drop. */
+    public static final Duration DEFAULT_QUERY_TIMEOUT = Duration.ofSeconds(25);
+
+    public RemoteSettings {
+        if (queryTimeout.compareTo(MAX_QUERY_TIMEOUT) > 0) {
+            throw new IllegalArgumentException("Query timeout " + queryTimeout + " exceeds " + MAX_QUERY_TIMEOUT
+                    + ": the ArcadeDB client's HTTP/2 connection is closed after 30 s");
+        }
+    }
 
     /**
      * Default server CPUs: the CPUs the client may not use when it is pinned (e.g. by {@code RAG_BENCH_CLIENT_CPUS});

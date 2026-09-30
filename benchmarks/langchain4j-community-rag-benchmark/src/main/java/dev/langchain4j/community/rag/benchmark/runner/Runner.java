@@ -100,6 +100,8 @@ public final class Runner {
 
     public RunResult run(ProfilePlan plan) throws Exception {
         String startedAt = Instant.now().toString();
+        // Before anything runs: the code measured is the checkout at start, not whatever is committed meanwhile.
+        RunResult.GitInfo git = gitInfo();
         List<String> queryIds = cache.queryIds();
         Map<String, String> queryText = new HashMap<>();
         for (Query query : dataset.dataset().testQueries(dataset.dataset().testQrels())) {
@@ -152,7 +154,7 @@ public final class Runner {
                 startedAt,
                 Instant.now().toString(),
                 Environment.capture(config.dataDir()),
-                gitInfo(),
+                git,
                 new RunResult.RunConfig(
                         dataset.manifest().name(),
                         dataset.tiers().seed(),

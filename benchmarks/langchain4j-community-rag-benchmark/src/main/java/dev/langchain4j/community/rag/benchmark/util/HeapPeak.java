@@ -20,6 +20,15 @@ public final class HeapPeak {
         }
     }
 
+    /**
+     * Heap in use after a full GC: the live set, unlike {@link #peakBytes()}, which with a large pinned heap mostly
+     * reflects how much garbage G1 let accumulate.
+     */
+    public static long liveBytes() {
+        System.gc();
+        return ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
+    }
+
     public static long peakBytes() {
         long peak = 0;
         for (MemoryPoolMXBean pool : ManagementFactory.getMemoryPoolMXBeans()) {

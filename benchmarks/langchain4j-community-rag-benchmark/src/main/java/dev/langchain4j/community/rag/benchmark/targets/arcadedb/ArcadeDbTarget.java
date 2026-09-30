@@ -37,6 +37,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -68,8 +69,23 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
     /** Client-side HTTP timeout for loading; generous because 26.7.2 may block inserts during graph rebuilds. */
     private static final Duration REMOTE_LOAD_TIMEOUT = Duration.ofMinutes(10);
 
-    /** Client-side HTTP timeout for the post-load index rebuild. */
-    private static final Duration REMOTE_REBUILD_TIMEOUT = Duration.ofHours(6);
+    /** Client-side HTTP timeout for a probe query, which may wait for a full graph build. */
+    private static final Duration REMOTE_PROBE_TIMEOUT = Duration.ofHours(6);
+
+    /**
+     * 26.7.2 rebuilds the graph after 15 s without mutations ({@code arcadedb.vectorIndex.inactivityRebuildTimeoutMs}).
+     * The server counts as settled only after this long without inserts, so that rebuild cannot start mid-measurement.
+     */
+    static final Duration REMOTE_MIN_IDLE_AFTER_LOAD = Duration.ofSeconds(20);
+
+    /** Server CPU below this (percent of one core) counts as idle. */
+    static final double REMOTE_IDLE_CPU_PERCENT = 10;
+
+    /** Consecutive idle CPU samples required. */
+    static final int REMOTE_IDLE_SAMPLES = 3;
+
+    /** Give up waiting for the server to settle after this long. */
+    private static final Duration REMOTE_SETTLE_TIMEOUT = Duration.ofHours(2);
 
     /** Embedded: database directory. Remote: server directory ({@code databases/}, {@code log/}). */
     private final Path databaseDir;
@@ -83,6 +99,7 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
     private ArcadeDBEmbeddingStore store;
     private Map<String, Object> effectiveIndex = Map.of();
     private Map<String, Object> serverDescription = Map.of();
+    private Map<String, Object> readiness = Map.of();
     private int vectorSubIndexes;
 
     private ArcadeDbTarget(Path databaseDir, ArcadeDbSettings settings, RemoteSettings remote) {
@@ -147,18 +164,19 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
                 break;
             }
         }
-        double loadSeconds = (System.nanoTime() - start) / 1e9;
+        long loadEnd = System.nanoTime();
+        double loadSeconds = (loadEnd - start) / 1e9;
 
-        long buildStart = System.nanoTime();
         if (remote == null) {
             LSMVectorIndex index = buildVectorGraph();
             VECTOR_INDEX_LOG.setLevel(java.util.logging.Level.WARNING);
             effectiveIndex = publicFields(index.getMetadata());
         } else {
-            rebuildRemoteIndex();
+            awaitRemoteSearchable(loadEnd);
         }
-        double timeToSearchable = (System.nanoTime() - buildStart) / 1e9;
+        double timeToSearchable = (System.nanoTime() - loadEnd) / 1e9;
         long peakHeap = HeapPeak.peakBytes();
+        long liveHeap = HeapPeak.liveBytes();
         long serverPeak = server == null ? -1 : server.peakMemoryBytes();
         long diskBytes = directorySize(
                 remote == null ? databaseDir : server.databasesDir().resolve(REMOTE_DATABASE));
@@ -168,7 +186,7 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
 
         double rate = loaded / Math.max(loadSeconds, 1e-9);
         log.info(
-                "Loaded {} of {} documents in {} s ({} /s{}), graph built in {} s",
+                "Loaded {} of {} documents in {} s ({} /s{}), searchable after {} s more",
                 loaded,
                 source.size(),
                 String.format("%.1f", loadSeconds),
@@ -185,6 +203,7 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
                 timeToSearchable,
                 diskBytes,
                 peakHeap,
+                liveHeap,
                 serverPeak);
     }
 
@@ -236,30 +255,86 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
     }
 
     /**
-     * Remote time-to-searchable: {@code REBUILD INDEX} on the vector index, which rebuilds it synchronously with its
-     * original metadata (the server exposes no build state and no {@code buildVectorGraphNow()}). Unlike the embedded
-     * graph build it also re-reads every record, so it is an upper bound. Harness SQL, not via the store API.
+     * Remote time-to-searchable (F19). The server exposes neither the graph build state nor
+     * {@code buildVectorGraphNow()}, and on 26.7.2 {@code REBUILD INDEX} only reloads the vectors without building the
+     * graph (and discards the one built during loading). So the harness waits, from the end of loading, until
+     * <ol>
+     *   <li>a probe vector query succeeds: on 26.7.2 the first query blocks until the pending graph build is done;</li>
+     *   <li>the server has settled: at least {@link #REMOTE_MIN_IDLE_AFTER_LOAD} after the last insert (past the
+     *       inactivity rebuild) and {@link #REMOTE_IDLE_SAMPLES} consecutive CPU samples below
+     *       {@link #REMOTE_IDLE_CPU_PERCENT}% of a core, so no background build overlaps measured queries.</li>
+     * </ol>
+     * The CPU criterion does not depend on ArcadeDB internals, so it also covers versions that build in the
+     * background without blocking the first query (26.9.1). The probe is harness SQL, not via the store API.
      */
-    private void rebuildRemoteIndex() throws InterruptedException {
+    private void awaitRemoteSearchable(long loadEnd) throws IOException, InterruptedException {
         try (RemoteDatabase admin = adminDatabase()) {
-            admin.setTimeout((int) REMOTE_REBUILD_TIMEOUT.toMillis());
+            admin.setTimeout((int) REMOTE_PROBE_TIMEOUT.toMillis());
             vectorSubIndexes = countRemoteVectorSubIndexes(admin);
             if (vectorSubIndexes != 1) {
                 throw new IllegalStateException("Expected exactly one vector sub-index for " + settings.typeName()
                         + " but found " + vectorSubIndexes);
             }
-            String sql = "REBUILD INDEX `" + settings.typeName() + "[embedding]`";
-            for (int attempt = 1; ; attempt++) {
-                try {
-                    admin.command("sql", sql).close();
-                    return;
-                } catch (RuntimeException e) {
-                    // A background rebuild may hold the index (NeedRetryException on the server).
-                    if (attempt >= 50 || !String.valueOf(e.getMessage()).contains("NeedRetry")) {
-                        throw e;
-                    }
-                    Thread.sleep(1000);
+            long deadline = System.nanoTime() + REMOTE_SETTLE_TIMEOUT.toNanos();
+            double firstProbe = probe(admin, deadline);
+            double firstProbeSeconds = (System.nanoTime() - loadEnd) / 1e9;
+            log.info("First probe query answered {} s after loading (took {} s)",
+                    String.format("%.1f", firstProbeSeconds), String.format("%.1f", firstProbe));
+
+            long earliest = loadEnd + REMOTE_MIN_IDLE_AFTER_LOAD.toNanos();
+            int idle = 0;
+            List<Double> samples = new ArrayList<>();
+            while (idle < REMOTE_IDLE_SAMPLES || System.nanoTime() < earliest) {
+                if (System.nanoTime() > deadline) {
+                    throw new IllegalStateException("Server not idle " + REMOTE_SETTLE_TIMEOUT + " after loading;"
+                            + " last CPU samples " + samples.subList(Math.max(0, samples.size() - 5), samples.size()));
                 }
+                double cpu = server.cpuPercent(); // docker stats takes about 1-2 s per sample
+                samples.add(cpu);
+                idle = cpu < REMOTE_IDLE_CPU_PERCENT ? idle + 1 : 0;
+            }
+            double settledSeconds = (System.nanoTime() - loadEnd) / 1e9;
+            double finalProbe = probe(admin, deadline);
+
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("firstProbeSeconds", firstProbeSeconds);
+            details.put("firstProbeQuerySeconds", firstProbe);
+            details.put("settledSeconds", settledSeconds);
+            details.put("finalProbeQuerySeconds", finalProbe);
+            details.put("cpuSamples", samples.size());
+            readiness = details;
+            log.info("Server settled {} s after loading ({} CPU samples); final probe {} s",
+                    String.format("%.1f", settledSeconds), samples.size(), String.format("%.3f", finalProbe));
+        }
+    }
+
+    /**
+     * One {@code vector.neighbors} query with the vector inlined, retried until it succeeds or {@code deadline}. A
+     * probe that waits for a graph build longer than 30 s loses its connection (the 26.7.2 client uses HTTP/2, which
+     * the server closes after 30 s; see {@link RemoteSettings#MAX_QUERY_TIMEOUT}); the build carries on regardless, so
+     * the probe is simply repeated. Returns the duration of the successful attempt.
+     */
+    private double probe(RemoteDatabase admin, long deadline) throws InterruptedException {
+        float[] vector = new float[settings.dimension()];
+        vector[0] = 1;
+        String sql = "SELECT count(*) AS n FROM (SELECT expand(vector.neighbors('" + settings.typeName()
+                + "[embedding]', " + Arrays.toString(vector) + ", 10)))";
+        for (int attempt = 1; ; attempt++) {
+            long start = System.nanoTime();
+            try (ResultSet result = admin.query("sql", sql)) {
+                long n = ((Number) result.next().getProperty("n")).longValue();
+                if (n == 0) {
+                    throw new IllegalStateException("Probe query returned no neighbours");
+                }
+                return (System.nanoTime() - start) / 1e9;
+            } catch (RuntimeException e) {
+                // Connection dropped at 30 s, or a background rebuild holds the index (NeedRetryException).
+                if (System.nanoTime() > deadline) {
+                    throw e;
+                }
+                log.info("Probe attempt {} failed after {} s ({}); retrying",
+                        attempt, String.format("%.1f", (System.nanoTime() - start) / 1e9), e.getMessage());
+                Thread.sleep(1000);
             }
         }
     }
@@ -281,7 +356,7 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
     }
 
     /**
-     * Sets the server-side query timeout for the database after loading, so loading and the rebuild are not limited
+     * Sets the server-side query timeout once the index is searchable, so loading and the graph build are not limited
      * but a runaway query (the unmodified store runs one ANN search per scanned row remotely) is aborted on the server
      * instead of competing with the next queries for CPU.
      */
@@ -349,13 +424,16 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
             description.put("effectiveIndex", effectiveIndex);
         } else {
             description.put(
-                    "graphBuild", "REBUILD INDEX via SQL after loading (harness step, not via store API)");
+                    "graphBuild",
+                    "none forced; time to searchable = until a probe vector query succeeds and the server is idle"
+                            + " (probe is harness SQL, not via store API)");
+            description.put("readiness", readiness);
             description.put("effectiveIndex", "not observable over HTTP; created with the settings above");
             description.put(
                     "storedText",
                     "line breaks replaced by spaces (unmodified remote addAll cannot insert them; see S11)");
             description.put("queryTimeoutMillis", remote.queryTimeout().toMillis());
-            description.put("queryTimeoutMechanism", "ALTER DATABASE `arcadedb.command.timeout` after loading");
+            description.put("queryTimeoutMechanism", "ALTER DATABASE `arcadedb.command.timeout` once searchable");
             CpuSet clientCpus = CpuSet.ofThisProcess();
             description.put("clientCpus", clientCpus.toString());
             description.put("serverCpus", remote.serverCpus().toString());

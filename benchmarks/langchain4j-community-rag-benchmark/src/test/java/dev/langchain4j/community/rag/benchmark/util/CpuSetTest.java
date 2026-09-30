@@ -39,6 +39,13 @@ class CpuSetTest {
     }
 
     @Test
+    void should_refuse_query_timeouts_the_http2_connection_would_cut_off() {
+        assertThatThrownBy(() -> new RemoteSettings("image", CpuSet.parse("1"), "1g", java.time.Duration.ofSeconds(30)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("30 s");
+    }
+
+    @Test
     void should_read_this_process_affinity() {
         assertThat(CpuSet.ofThisProcess().size()).isPositive();
         assertThat(CpuSet.online().size()).isGreaterThanOrEqualTo(CpuSet.ofThisProcess().size());

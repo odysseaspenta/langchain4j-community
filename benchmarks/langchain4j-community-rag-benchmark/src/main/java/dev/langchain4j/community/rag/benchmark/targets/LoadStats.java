@@ -11,7 +11,9 @@ package dev.langchain4j.community.rag.benchmark.targets;
  * @param extrapolatedLoadSeconds {@code requested / vectorsPerSecond}; equals {@code loadSeconds} when not capped
  * @param timeToSearchableSeconds from the end of loading until the index is fully built and searchable
  * @param diskBytes               on-disk size after loading, or -1 if not applicable
- * @param peakHeapBytes           peak heap of this JVM during loading and index build
+ * @param peakHeapBytes           peak used heap of this JVM during loading and index build, including garbage not yet
+ *                                collected (with a large pinned heap this is mostly GC policy, not demand)
+ * @param liveHeapBytes           heap in use after a full GC once the index is searchable (the live set)
  * @param serverPeakMemoryBytes   peak memory of a separate server process (heap plus off-heap), or -1 when the
  *                                store runs in this JVM
  */
@@ -25,4 +27,5 @@ public record LoadStats(
         double timeToSearchableSeconds,
         long diskBytes,
         long peakHeapBytes,
+        long liveHeapBytes,
         long serverPeakMemoryBytes) {}

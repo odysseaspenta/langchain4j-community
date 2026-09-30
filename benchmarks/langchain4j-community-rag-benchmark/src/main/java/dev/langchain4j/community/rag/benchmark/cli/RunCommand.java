@@ -15,6 +15,7 @@ import dev.langchain4j.community.rag.benchmark.runner.Profile;
 import dev.langchain4j.community.rag.benchmark.runner.ProfilePlan;
 import dev.langchain4j.community.rag.benchmark.runner.Runner;
 import dev.langchain4j.community.rag.benchmark.runner.TargetMode;
+import dev.langchain4j.community.rag.benchmark.targets.arcadedb.ArcadeDbLogging;
 import dev.langchain4j.community.rag.benchmark.targets.arcadedb.ArcadeDbSettings;
 import dev.langchain4j.community.rag.benchmark.targets.arcadedb.ArcadeDbTarget;
 import dev.langchain4j.community.rag.benchmark.targets.arcadedb.ArcadeDbVersion;
@@ -108,7 +109,8 @@ class RunCommand implements Callable<Integer> {
     @Option(
             names = "--query-timeout-seconds",
             paramLabel = "<seconds>",
-            description = "Remote: server-side timeout per query (default: 30).")
+            description = "Remote: server-side timeout per query, at most 29 (default: 25; the ArcadeDB client's HTTP/2"
+                    + " connection is closed after 30 s).")
     Integer queryTimeoutSeconds;
 
     @Option(
@@ -137,6 +139,9 @@ class RunCommand implements Callable<Integer> {
         if (modes != null) {
             plan = plan.withModes(modes.stream().distinct().toList());
         }
+        BenchmarkConfig config = cli.config();
+        // Before any ArcadeDB class logs: keep ArcadeDB's log out of the working directory.
+        ArcadeDbLogging.configure(config.dataDir().resolve("logs"));
         RemoteSettings remote = null;
         if (plan.modes().contains(TargetMode.REMOTE)) {
             CpuSet clientCpus = CpuSet.ofThisProcess();
@@ -157,7 +162,6 @@ class RunCommand implements Callable<Integer> {
                             ? RemoteSettings.DEFAULT_QUERY_TIMEOUT
                             : Duration.ofSeconds(queryTimeoutSeconds));
         }
-        BenchmarkConfig config = cli.config();
         int threadCount = threads != null ? threads : Runtime.getRuntime().availableProcessors();
         DatasetSource source = DatasetSource.byName(dataset)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown dataset '" + dataset + "'"));

@@ -67,3 +67,16 @@ Re-embedded all 100,000 smoke passages through the server (length-sorted batches
 - After the OOM, PyTorch's cache holds all 16 GB of VRAM; a server restart may help.
 - Options to try before B09 (each re-checked against this gate): restart the server; `PYTORCH_TUNABLEOP_ENABLED=1` (GEMM tuning on ROCm); larger batches for short texts; running the CPU and GPU backends side by side (~280/s combined). fp16 would be much faster but departs from "full precision" (D6) — owner decision, and it must pass the gate.
 - At 185/s the standard tier (1M) takes ~1.5 h on the GPU vs ~2.9 h on the CPU.
+
+### Rerun with TunableOp (2026-09-30)
+Server restarted with `-e PYTORCH_TUNABLEOP_ENABLED=1 -e PYTORCH_TUNABLEOP_FILENAME=/app/tunableop_results.csv` (results land in `tunableop_results0.csv`, per device); same image digest (`rocm/pytorch@sha256:a3867e22…`) and packages as the first gate (sentence-transformers 3.4.1, transformers 4.57.6, tokenizers 0.22.2, huggingface_hub 0.36.2, safetensors 0.8.0, torch 2.13.0+rocm7.14.0 — pin these; `requirements.txt` still says `sentence-transformers==3.*`).
+
+| Pass | Throughput | Notes |
+|---|---|---|
+| Untuned (2026-09-29) | 185 passages/s | |
+| TunableOp pass 1 | 73 passages/s | tunes each new GEMM shape; 1,864 results saved |
+| **TunableOp pass 2** | **289 passages/s** (1,107/s shortest → ~200/s longest) | no new tuning; ~1.56× untuned, ~3× the 8-core CPU |
+
+Accuracy unchanged in both passes: min cosine 0.9999213, top-10 sets identical for 100% of queries, top-10 order identical for 99.94% (2 near-tie swaps), exact-neighbour nDCG@10 / Recall@100 0.8584 / 0.9876 on both. **Gate passes with TunableOp.**
+
+Sizing: at ~290/s the standard tier (1M) takes ~1 h (CPU: ~2.9 h); running the CPU backend alongside (~95/s) would give ~380/s. Keep the tuning file with the server files (mounted, survives restarts) so later runs skip the tuning pass; new sequence-length shapes are tuned on first sight. The backend must sort texts by length before batching (random batches: ~75/s) and send one request at a time (two concurrent 256-text fp32 batches ran the GPU out of memory).

@@ -54,7 +54,7 @@ public class ArcadeDbRemoteTargetTest {
     void should_load_pin_the_server_and_answer_dense_and_hybrid_queries() throws Exception {
         CpuSet serverCpus = CpuSet.online().upperHalf();
         RemoteSettings remote =
-                new RemoteSettings(ArcadeDbVersion.dockerImage(), serverCpus, "1g", Duration.ofSeconds(30));
+                new RemoteSettings(ArcadeDbVersion.dockerImage(), serverCpus, "1g", Duration.ofSeconds(25));
         Path serverDir = dataDir.resolve("server");
         String container;
 
@@ -67,7 +67,10 @@ public class ArcadeDbRemoteTargetTest {
             assertThat(stats.loaded()).isEqualTo(PASSAGES);
             assertThat(stats.diskBytes()).isPositive();
             assertThat(stats.serverPeakMemoryBytes()).isPositive();
-            assertThat(stats.timeToSearchableSeconds()).isNotNegative();
+            assertThat(stats.liveHeapBytes()).isPositive();
+            // Probe answered, then the server stayed idle past the inactivity rebuild.
+            assertThat(stats.timeToSearchableSeconds())
+                    .isGreaterThanOrEqualTo(ArcadeDbTarget.REMOTE_MIN_IDLE_AFTER_LOAD.toSeconds());
 
             container = target.server().containerName();
             assertThat(target.server().inspectCpuset()).isEqualTo(serverCpus.toString());
@@ -76,10 +79,14 @@ public class ArcadeDbRemoteTargetTest {
                     .containsEntry("target", "arcadedb-remote")
                     .containsEntry("vectorSubIndexes", 1)
                     .containsEntry("serverCpus", serverCpus.toString())
-                    .containsEntry("queryTimeoutMillis", 30_000L);
+                    .containsEntry("queryTimeoutMillis", 25_000L);
             @SuppressWarnings("unchecked")
             Map<String, Object> server = (Map<String, Object>) description.get("server");
             assertThat(server).containsEntry("cpusetCpus", serverCpus.toString()).containsKey("imageId");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> readiness = (Map<String, Object>) description.get("readiness");
+            assertThat(readiness).containsKeys("firstProbeSeconds", "settledSeconds", "finalProbeQuerySeconds");
+            assertThat((Integer) readiness.get("cpuSamples")).isGreaterThanOrEqualTo(ArcadeDbTarget.REMOTE_IDLE_SAMPLES);
 
             // Unmodified store: remote dense returns scan-order rows re-sorted by score (S3), so only check it answers.
             SearchResult dense =

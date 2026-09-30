@@ -214,6 +214,13 @@ public final class DockerServer implements AutoCloseable {
         }
     }
 
+    /** Current CPU use of the container in percent of one core ({@code docker stats}, one sample of ~1-2 s). */
+    public double cpuPercent() throws IOException, InterruptedException {
+        String value = docker(List.of("docker", "stats", "--no-stream", "--format", "{{.CPUPerc}}", name))
+                .trim();
+        return Double.parseDouble(value.replace("%", ""));
+    }
+
     /** Stops the server cleanly (so its databases can be reopened) and removes the container. */
     @Override
     public void close() {
