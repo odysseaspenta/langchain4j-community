@@ -421,7 +421,9 @@ public final class Runner {
             return new RunResult.GitInfo(null, false, false);
         }
         String commit = Environment.command("git", "-C", root.toString(), "rev-parse", "HEAD");
-        String status = Environment.command("git", "-C", root.toString(), "status", "--porcelain");
+        // Result reports of earlier runs (benchmarks/results/**/report.md) are not code; they must not mark a run dirty.
+        String status = Environment.command(
+                "git", "-C", root.toString(), "status", "--porcelain", "--", ".", ":(exclude)benchmarks/results");
         String storeStatus = Environment.command(
                 "git",
                 "-C",
