@@ -214,6 +214,29 @@ public final class DockerServer implements AutoCloseable {
         }
     }
 
+    /** Host directory with the server log and GC log. */
+    public Path logDir() {
+        return options.hostDir().resolve("log");
+    }
+
+    /** Whether any server log file ({@code arcadedb.log*}) contains {@code text}. */
+    public boolean logContains(String text) throws IOException {
+        Path dir = logDir();
+        if (!Files.isDirectory(dir)) {
+            return false;
+        }
+        try (java.util.stream.Stream<Path> files = Files.list(dir)) {
+            for (Path file : files.filter(f -> f.getFileName().toString().startsWith("arcadedb.log")
+                            && !f.getFileName().toString().endsWith(".lck"))
+                    .toList()) {
+                if (Files.readString(file, StandardCharsets.UTF_8).contains(text)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /** Current CPU use of the container in percent of one core ({@code docker stats}, one sample of ~1-2 s). */
     public double cpuPercent() throws IOException, InterruptedException {
         String value = docker(List.of("docker", "stats", "--no-stream", "--format", "{{.CPUPerc}}", name))

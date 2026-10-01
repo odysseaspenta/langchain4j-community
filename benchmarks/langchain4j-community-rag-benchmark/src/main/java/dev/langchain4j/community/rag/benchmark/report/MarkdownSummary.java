@@ -23,6 +23,16 @@ public final class MarkdownSummary {
                 .append(" profile, ArcadeDB ")
                 .append(version)
                 .append("\n\n");
+        if (!RunResult.COMPLETE.equals(result.status())) {
+            md.append("> **Status: ")
+                    .append(result.status())
+                    .append("**")
+                    .append(
+                            RunResult.RUNNING.equals(result.status())
+                                    ? " — checkpoint written after a load; the run continues."
+                                    : " — at least one load or scenario failed; see the errors below.")
+                    .append("\n\n");
+        }
         if (!"reference".equals(result.machineClass())) {
             md.append("> **Development machine (")
                     .append(result.machineClass())
@@ -71,6 +81,14 @@ public final class MarkdownSummary {
                 .append("|---|---|---|---|---|---|---|---|---|---|\n");
         for (RunResult.TargetRun run : result.runs()) {
             LoadStats load = run.load();
+            if (load == null) {
+                md.append("| ")
+                        .append(run.target())
+                        .append(" | ")
+                        .append(run.tier())
+                        .append(" | failed | – | – | – | – | – | – | – |\n");
+                continue;
+            }
             md.append("| ")
                     .append(run.target())
                     .append(" | ")
@@ -194,6 +212,21 @@ public final class MarkdownSummary {
                                     : " First failure: `" + abbreviate(s.failures().examples().get(0)) + "`")
                             .append("\n");
                 }
+            }
+        }
+        for (RunResult.TargetRun run : result.runs()) {
+            if (run.error() != null) {
+                md.append("\n❌ ")
+                        .append(run.target())
+                        .append(" / ")
+                        .append(run.tier())
+                        .append(" failed: `")
+                        .append(abbreviate(run.error()))
+                        .append("`")
+                        .append(run.scenarios().isEmpty()
+                                ? ""
+                                : " (" + run.scenarios().size() + " scenario(s) finished before the failure)")
+                        .append("\n");
             }
         }
         md.append("\nLatency is the median across repetitions of each repetition's percentile; the cold pass runs"

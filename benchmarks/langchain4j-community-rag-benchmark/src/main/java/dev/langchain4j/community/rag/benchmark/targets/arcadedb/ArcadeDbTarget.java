@@ -69,8 +69,12 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
     /** Client-side HTTP timeout for loading; generous because 26.7.2 may block inserts during graph rebuilds. */
     private static final Duration REMOTE_LOAD_TIMEOUT = Duration.ofMinutes(10);
 
-    /** Client-side HTTP timeout for a probe query, which may wait for a full graph build. */
-    private static final Duration REMOTE_PROBE_TIMEOUT = Duration.ofHours(6);
+    /**
+     * Client-side HTTP timeout of one probe attempt. A probe waiting for a graph build normally loses its connection
+     * after 30 s (HTTP/2) and is retried; this bounds attempts that hang instead (seen after a server
+     * {@code OutOfMemoryError} during a 1M-vector build).
+     */
+    private static final Duration REMOTE_PROBE_ATTEMPT_TIMEOUT = Duration.ofMinutes(10);
 
     /**
      * 26.7.2 rebuilds the graph after 15 s without mutations ({@code arcadedb.vectorIndex.inactivityRebuildTimeoutMs}).
@@ -269,7 +273,6 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
      */
     private void awaitRemoteSearchable(long loadEnd) throws IOException, InterruptedException {
         try (RemoteDatabase admin = adminDatabase()) {
-            admin.setTimeout((int) REMOTE_PROBE_TIMEOUT.toMillis());
             vectorSubIndexes = countRemoteVectorSubIndexes(admin);
             if (vectorSubIndexes != 1) {
                 throw new IllegalStateException("Expected exactly one vector sub-index for " + settings.typeName()
@@ -285,6 +288,7 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
             int idle = 0;
             List<Double> samples = new ArrayList<>();
             while (idle < REMOTE_IDLE_SAMPLES || System.nanoTime() < earliest) {
+                failIfServerOutOfMemory();
                 if (System.nanoTime() > deadline) {
                     throw new IllegalStateException("Server not idle " + REMOTE_SETTLE_TIMEOUT + " after loading;"
                             + " last CPU samples " + samples.subList(Math.max(0, samples.size() - 5), samples.size()));
@@ -309,17 +313,34 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
     }
 
     /**
+     * Fails fast once the server logged an {@code OutOfMemoryError}: 26.7.2 then leaves the vector graph unbuilt and
+     * unpersisted, and queries that wait for it never return.
+     */
+    private void failIfServerOutOfMemory() throws IOException {
+        if (server.logContains("java.lang.OutOfMemoryError")) {
+            throw new IllegalStateException("ArcadeDB server ran out of heap (" + remote.serverHeap()
+                    + "); see " + server.logDir() + ". Increase --server-heap.");
+        }
+    }
+
+    /**
      * One {@code vector.neighbors} query with the vector inlined, retried until it succeeds or {@code deadline}. A
      * probe that waits for a graph build longer than 30 s loses its connection (the 26.7.2 client uses HTTP/2, which
      * the server closes after 30 s; see {@link RemoteSettings#MAX_QUERY_TIMEOUT}); the build carries on regardless, so
      * the probe is simply repeated. Returns the duration of the successful attempt.
      */
-    private double probe(RemoteDatabase admin, long deadline) throws InterruptedException {
+    private double probe(RemoteDatabase admin, long deadline) throws IOException, InterruptedException {
         float[] vector = new float[settings.dimension()];
         vector[0] = 1;
         String sql = "SELECT count(*) AS n FROM (SELECT expand(vector.neighbors('" + settings.typeName()
                 + "[embedding]', " + Arrays.toString(vector) + ", 10)))";
         for (int attempt = 1; ; attempt++) {
+            failIfServerOutOfMemory();
+            long remaining = deadline - System.nanoTime();
+            if (remaining <= 0) {
+                throw new IllegalStateException("Probe query did not succeed before the readiness deadline");
+            }
+            admin.setTimeout((int) Math.min(REMOTE_PROBE_ATTEMPT_TIMEOUT.toMillis(), remaining / 1_000_000 + 1));
             long start = System.nanoTime();
             try (ResultSet result = admin.query("sql", sql)) {
                 long n = ((Number) result.next().getProperty("n")).longValue();

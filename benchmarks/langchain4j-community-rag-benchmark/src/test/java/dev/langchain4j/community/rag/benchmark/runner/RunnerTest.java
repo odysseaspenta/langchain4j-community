@@ -185,6 +185,75 @@ class RunnerTest {
                 .contains("server CPUs " + CpuSet.online().upperHalf());
     }
 
+    @Test
+    void should_record_a_failed_load_checkpoint_after_each_load_and_continue() throws Exception {
+        BenchmarkConfig config = new BenchmarkConfig(dataDir, resultsDir, 42, BenchmarkConfig.DEV);
+        ProfilePlan twoLoads = plan.withModes(List.of(TargetMode.REMOTE, TargetMode.EMBEDDED));
+        Runner.TargetFactory factory = (tier, mode) -> mode == TargetMode.REMOTE
+                ? new FailingTarget()
+                : ArcadeDbTarget.embedded(dataDir.resolve("db"), ArcadeDbSettings.pinned(FakeEmbeddingModel.DIMENSION));
+        List<RunResult> checkpoints = new java.util.ArrayList<>();
+        Path dir = ResultWriter.createRunDir(resultsDir, "arcadedb-test", "smoke", "partial");
+
+        RunResult result = new Runner(config, dataset, cache, groundTruth, factory, new Runner.Settings(100, null, "dev"))
+                .run(twoLoads, partial -> {
+                    checkpoints.add(partial);
+                    ResultWriter.writeTo(dir, partial);
+                });
+
+        assertThat(checkpoints).hasSize(2);
+        assertThat(checkpoints.get(0).status()).isEqualTo(RunResult.RUNNING);
+        assertThat(checkpoints.get(0).finishedAt()).isNull();
+        assertThat(checkpoints.get(0).runs()).hasSize(1);
+        assertThat(result.status()).isEqualTo(RunResult.INCOMPLETE);
+        RunResult.TargetRun failed = result.runs().get(0);
+        assertThat(failed.error()).contains("simulated load failure");
+        assertThat(failed.load()).isNull();
+        assertThat(failed.scenarios()).isEmpty();
+        RunResult.TargetRun ok = result.runs().get(1);
+        assertThat(ok.error()).isNull();
+        assertThat(ok.scenarios()).hasSize(4);
+
+        ResultWriter.writeTo(dir, result);
+        assertThat(dir.getFileName().toString()).endsWith("-arcadedb-test-smoke-partial");
+        assertThat(Json.read(dir.resolve("result.json"), RunResult.class).status()).isEqualTo(RunResult.INCOMPLETE);
+        assertThat(Files.readString(dir.resolve("report.md")))
+                .contains("Status: incomplete")
+                .contains("| failing | smoke | failed |")
+                .contains("failing / smoke failed: `java.lang.IllegalStateException: simulated load failure`");
+    }
+
+    static final class FailingTarget implements BenchmarkTarget {
+
+        @Override
+        public String name() {
+            return "failing";
+        }
+
+        @Override
+        public LoadStats load(DocumentSource source, LoadOptions options) {
+            throw new IllegalStateException("simulated load failure");
+        }
+
+        @Override
+        public SearchResult search(SearchRequest request) {
+            throw new AssertionError("not loaded");
+        }
+
+        @Override
+        public Map<String, Boolean> capabilities() {
+            return Map.of();
+        }
+
+        @Override
+        public Map<String, Object> describe() {
+            return Map.of("target", name());
+        }
+
+        @Override
+        public void close() {}
+    }
+
     /** A target that answers every query with nothing, like remote dense on the unmodified store after a timeout. */
     static final class NothingTarget implements BenchmarkTarget {
 

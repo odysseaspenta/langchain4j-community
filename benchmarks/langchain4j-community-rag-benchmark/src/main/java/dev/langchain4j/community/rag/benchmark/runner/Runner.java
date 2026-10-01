@@ -99,9 +99,21 @@ public final class Runner {
     }
 
     public RunResult run(ProfilePlan plan) throws Exception {
+        return run(plan, result -> {});
+    }
+
+    /**
+     * Runs {@code plan}, handing {@code checkpoint} the result so far after every load (status
+     * {@link RunResult#RUNNING}), so a run that dies later keeps what it measured. A load or scenario that throws is
+     * recorded on its {@link RunResult.TargetRun#error()} and the run continues with the next (tier, mode); the final
+     * status is then {@link RunResult#INCOMPLETE}.
+     */
+    public RunResult run(ProfilePlan plan, Checkpoint checkpoint) throws Exception {
         String startedAt = Instant.now().toString();
         // Before anything runs: the code measured is the checkout at start, not whatever is committed meanwhile.
         RunResult.GitInfo git = gitInfo();
+        Environment environment = Environment.capture(config.dataDir());
+        RunResult.Inputs inputs = inputs(plan);
         List<String> queryIds = cache.queryIds();
         Map<String, String> queryText = new HashMap<>();
         for (Query query : dataset.dataset().testQueries(dataset.dataset().testQrels())) {
@@ -115,45 +127,94 @@ public final class Runner {
             for (Tier tier : plan.tiers()) {
                 for (TargetMode mode : plan.modes()) {
                     log.info("Loading tier {} into {} target", tier.id(), mode.id());
+                    String name = null;
+                    Map<String, Object> describe = Map.of();
+                    Map<String, Boolean> capabilities = Map.of();
+                    LoadStats load = null;
+                    List<RunResult.ScenarioResult> scenarios = new ArrayList<>();
+                    String error = null;
                     try (BenchmarkTarget target = factory.create(tier, mode);
                             TierDocumentSource source =
                                     new TierDocumentSource(dataset, cache, dataset.loadOrder(tier))) {
-                        LoadStats load =
-                                target.load(source, new LoadOptions(settings.loadBatchSize(), settings.loadTimeCap()));
-                        List<RunResult.ScenarioResult> scenarios = new ArrayList<>();
-                        for (Scenario scenario : plan.scenarios()) {
-                            log.info("Scenario {} on tier {} ({})", scenario.name(), tier.id(), mode.id());
-                            scenarios.add(runScenario(
-                                    target,
-                                    tier,
-                                    scenario,
-                                    plan,
-                                    queryIds,
-                                    queryText,
-                                    queryVectors,
-                                    qrels,
-                                    passageIds));
+                        name = target.name();
+                        try {
+                            load = target.load(
+                                    source, new LoadOptions(settings.loadBatchSize(), settings.loadTimeCap()));
+                            for (Scenario scenario : plan.scenarios()) {
+                                log.info("Scenario {} on tier {} ({})", scenario.name(), tier.id(), mode.id());
+                                scenarios.add(runScenario(
+                                        target,
+                                        tier,
+                                        scenario,
+                                        plan,
+                                        queryIds,
+                                        queryText,
+                                        queryVectors,
+                                        qrels,
+                                        passageIds));
+                            }
+                        } catch (Exception e) {
+                            error = e.toString();
+                            log.error("Tier {} ({}) failed; continuing with the next load", tier.id(), mode.id(), e);
+                        } finally {
+                            describe = safeDescribe(target);
+                            capabilities = target.capabilities();
                         }
-                        runs.add(new RunResult.TargetRun(
-                                target.name(),
-                                tier.id(),
-                                mode.id(),
-                                target.describe(),
-                                target.capabilities(),
-                                load,
-                                scenarios));
+                    } catch (Exception e) {
+                        // Creating, closing the target or reading the tier failed.
+                        error = error == null ? e.toString() : error + "; then " + e;
+                        log.error("Tier {} ({}) failed", tier.id(), mode.id(), e);
                     }
+                    runs.add(new RunResult.TargetRun(
+                            name == null ? mode.id() : name,
+                            tier.id(),
+                            mode.id(),
+                            describe,
+                            capabilities,
+                            load,
+                            scenarios,
+                            error));
+                    checkpoint.save(
+                            result(plan, RunResult.RUNNING, startedAt, null, environment, git, inputs, runs));
                 }
             }
         }
+        String status = runs.stream().anyMatch(r -> r.error() != null) ? RunResult.INCOMPLETE : RunResult.COMPLETE;
+        return result(plan, status, startedAt, Instant.now().toString(), environment, git, inputs, runs);
+    }
 
+    /** Receives the result so far after every load. */
+    @FunctionalInterface
+    public interface Checkpoint {
+        void save(RunResult partial) throws IOException;
+    }
+
+    private static Map<String, Object> safeDescribe(BenchmarkTarget target) {
+        try {
+            return target.describe();
+        } catch (RuntimeException e) {
+            return Map.of("describeError", e.toString());
+        }
+    }
+
+    private RunResult result(
+            ProfilePlan plan,
+            String status,
+            String startedAt,
+            String finishedAt,
+            Environment environment,
+            RunResult.GitInfo git,
+            RunResult.Inputs inputs,
+            List<RunResult.TargetRun> runs)
+            throws IOException {
         return new RunResult(
                 RunResult.FORMAT_VERSION,
                 plan.profile().name().toLowerCase(Locale.ROOT),
                 settings.machineClass(),
+                status,
                 startedAt,
-                Instant.now().toString(),
-                Environment.capture(config.dataDir()),
+                finishedAt,
+                environment,
                 git,
                 new RunResult.RunConfig(
                         dataset.manifest().name(),
@@ -172,8 +233,8 @@ public final class Runner {
                         plan.tiers().stream().map(Tier::id).toList(),
                         plan.modes().stream().map(TargetMode::id).toList(),
                         plan.scenarios().stream().map(Scenario::name).toList()),
-                inputs(plan),
-                runs);
+                inputs,
+                List.copyOf(runs));
     }
 
     private RunResult.ScenarioResult runScenario(

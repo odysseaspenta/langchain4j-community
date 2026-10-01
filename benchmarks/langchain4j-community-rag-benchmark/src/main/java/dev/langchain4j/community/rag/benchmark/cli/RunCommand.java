@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Callable;
 import java.util.stream.Stream;
 import picocli.CommandLine.Command;
@@ -83,6 +84,13 @@ class RunCommand implements Callable<Integer> {
 
     @Option(names = "--keep-databases", description = "Keep the loaded databases instead of deleting them.")
     boolean keepDatabases;
+
+    @Option(
+            names = "--label",
+            paramLabel = "<label>",
+            description = "Appended to the results directory name, e.g. embedded for"
+                    + " <date>-arcadedb-<version>-baseline-embedded.")
+    String label;
 
     @Option(
             names = "--mode",
@@ -197,9 +205,15 @@ class RunCommand implements Callable<Integer> {
                 failureStreakLimit,
                 passTimeCapMinutes == null ? null : Duration.ofMinutes(passTimeCapMinutes));
 
+        // Results are rewritten after every load, so a run that dies later keeps what it measured.
+        Path runDir = ResultWriter.createRunDir(
+                config.resultsDir(), "arcadedb-" + version, plan.profile().name().toLowerCase(Locale.ROOT), label);
+        spec.commandLine().getOut().println("Results (updated after every load): " + runDir);
+        spec.commandLine().getOut().flush();
         RunResult result;
         try {
-            result = new Runner(config, prepared, cache, groundTruth, factory, settings).run(plan);
+            result = new Runner(config, prepared, cache, groundTruth, factory, settings)
+                    .run(plan, partial -> ResultWriter.writeTo(runDir, partial));
         } finally {
             if (!keepDatabases) {
                 for (Path dir : created) {
@@ -207,13 +221,13 @@ class RunCommand implements Callable<Integer> {
                 }
             }
         }
-        Path runDir = ResultWriter.write(config.resultsDir(), "arcadedb-" + version, result);
+        ResultWriter.writeTo(runDir, result);
 
         PrintWriter out = spec.commandLine().getOut();
-        out.println("Results: " + runDir);
+        out.println("Results: " + runDir + " (" + result.status() + ")");
         out.println(Files.readString(runDir.resolve("report.md")));
         out.flush();
-        return 0;
+        return RunResult.COMPLETE.equals(result.status()) ? 0 : 1;
     }
 
     private static void deleteRecursively(Path dir) throws IOException {

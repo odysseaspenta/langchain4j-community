@@ -13,6 +13,7 @@ public record RunResult(
         int formatVersion,
         String profile,
         String machineClass,
+        String status,
         String startedAt,
         String finishedAt,
         Environment environment,
@@ -22,6 +23,15 @@ public record RunResult(
         List<TargetRun> runs) {
 
     public static final int FORMAT_VERSION = 1;
+
+    /** Written after each load while the run continues; {@code finishedAt} is {@code null}. */
+    public static final String RUNNING = "running";
+
+    /** Every load and scenario finished. */
+    public static final String COMPLETE = "complete";
+
+    /** The run finished, but at least one load or scenario failed (see {@link TargetRun#error()}). */
+    public static final String INCOMPLETE = "incomplete";
 
     public record RunConfig(
             String dataset,
@@ -53,6 +63,9 @@ public record RunResult(
 
     /**
      * One load of one tier into one target, and the scenarios run against it.
+     *
+     * @param load  {@code null} if loading failed
+     * @param error why the load or a scenario failed (scenarios holds those that finished), or {@code null}
      */
     public record TargetRun(
             String target,
@@ -61,7 +74,8 @@ public record RunResult(
             Map<String, Object> targetConfig,
             Map<String, Boolean> capabilities,
             LoadStats load,
-            List<ScenarioResult> scenarios) {}
+            List<ScenarioResult> scenarios,
+            String error) {}
 
     /**
      * @param efSearchApplied   whether the requested efSearch reached the store (false: store default was used)
