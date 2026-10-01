@@ -217,6 +217,11 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
      * Remote mode therefore stores line breaks as spaces. Embeddings are unaffected, and the full-text analyzer splits
      * on both alike, so retrieval is unchanged. Remove once the store binds text as a parameter (S11).
      */
+    private static String abbreviate(String text) {
+        String value = String.valueOf(text);
+        return value.length() <= 160 ? value : value.substring(0, 160) + "…";
+    }
+
     static String singleLine(String text) {
         return text.replace("\r\n", " ").replace('\r', ' ').replace('\n', ' ');
     }
@@ -284,19 +289,8 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
             log.info("First probe query answered {} s after loading (took {} s)",
                     String.format("%.1f", firstProbeSeconds), String.format("%.1f", firstProbe));
 
-            long earliest = loadEnd + REMOTE_MIN_IDLE_AFTER_LOAD.toNanos();
-            int idle = 0;
             List<Double> samples = new ArrayList<>();
-            while (idle < REMOTE_IDLE_SAMPLES || System.nanoTime() < earliest) {
-                failIfServerOutOfMemory();
-                if (System.nanoTime() > deadline) {
-                    throw new IllegalStateException("Server not idle " + REMOTE_SETTLE_TIMEOUT + " after loading;"
-                            + " last CPU samples " + samples.subList(Math.max(0, samples.size() - 5), samples.size()));
-                }
-                double cpu = server.cpuPercent(); // docker stats takes about 1-2 s per sample
-                samples.add(cpu);
-                idle = cpu < REMOTE_IDLE_CPU_PERCENT ? idle + 1 : 0;
-            }
+            awaitServerIdle(deadline, loadEnd + REMOTE_MIN_IDLE_AFTER_LOAD.toNanos(), samples);
             double settledSeconds = (System.nanoTime() - loadEnd) / 1e9;
             double finalProbe = probe(admin, deadline);
 
@@ -309,6 +303,25 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
             readiness = details;
             log.info("Server settled {} s after loading ({} CPU samples); final probe {} s",
                     String.format("%.1f", settledSeconds), samples.size(), String.format("%.3f", finalProbe));
+        }
+    }
+
+    /**
+     * Samples the container's CPU until {@link #REMOTE_IDLE_SAMPLES} consecutive samples are below
+     * {@link #REMOTE_IDLE_CPU_PERCENT}% of a core and {@code earliest} has passed.
+     */
+    private void awaitServerIdle(long deadline, long earliest, List<Double> samples)
+            throws IOException, InterruptedException {
+        int idle = 0;
+        while (idle < REMOTE_IDLE_SAMPLES || System.nanoTime() < earliest) {
+            failIfServerOutOfMemory();
+            if (System.nanoTime() > deadline) {
+                throw new IllegalStateException("Server not idle " + REMOTE_SETTLE_TIMEOUT + " after loading;"
+                        + " last CPU samples " + samples.subList(Math.max(0, samples.size() - 5), samples.size()));
+            }
+            double cpu = server.cpuPercent(); // docker stats takes about 1-2 s per sample
+            samples.add(cpu);
+            idle = cpu < REMOTE_IDLE_CPU_PERCENT ? idle + 1 : 0;
         }
     }
 
@@ -327,7 +340,10 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
      * One {@code vector.neighbors} query with the vector inlined, retried until it succeeds or {@code deadline}. A
      * probe that waits for a graph build longer than 30 s loses its connection (the 26.7.2 client uses HTTP/2, which
      * the server closes after 30 s; see {@link RemoteSettings#MAX_QUERY_TIMEOUT}); the build carries on regardless, so
-     * the probe is simply repeated. Returns the duration of the successful attempt.
+     * the probe is repeated — but only once the server is idle again. On 26.7.2 every query that finds the graph stale
+     * runs its own full rebuild ({@code rebuildGraphBeforeSearch}), and an abandoned query keeps running: probing every
+     * 30 s during a 1M-vector build stacked up ~15 concurrent builds and ran a 24 GB server heap out of memory (B10).
+     * Returns the duration of the successful attempt.
      */
     private double probe(RemoteDatabase admin, long deadline) throws IOException, InterruptedException {
         float[] vector = new float[settings.dimension()];
@@ -353,9 +369,9 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
                 if (System.nanoTime() > deadline) {
                     throw e;
                 }
-                log.info("Probe attempt {} failed after {} s ({}); retrying",
-                        attempt, String.format("%.1f", (System.nanoTime() - start) / 1e9), e.getMessage());
-                Thread.sleep(1000);
+                log.info("Probe attempt {} failed after {} s ({}); waiting for the server to go idle before retrying",
+                        attempt, String.format("%.1f", (System.nanoTime() - start) / 1e9), abbreviate(e.getMessage()));
+                awaitServerIdle(deadline, 0, new ArrayList<>());
             }
         }
     }

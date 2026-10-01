@@ -21,6 +21,15 @@ class ProfilePlanTest {
     }
 
     @Test
+    void should_override_tiers_to_rerun_one_tier() {
+        ProfilePlan plan = ProfilePlan.of(Profile.BASELINE).withTiers(List.of(Tier.STANDARD));
+
+        assertThat(plan.tiers()).containsExactly(Tier.STANDARD);
+        assertThat(plan.modes()).containsExactly(TargetMode.EMBEDDED, TargetMode.REMOTE);
+        assertThatThrownBy(() -> plan.withTiers(List.of())).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void should_keep_smoke_embedded_only_unless_modes_are_overridden() {
         assertThat(ProfilePlan.of(Profile.SMOKE).modes()).containsExactly(TargetMode.EMBEDDED);
         assertThat(ProfilePlan.of(Profile.SMOKE).withModes(List.of(TargetMode.REMOTE)).modes())

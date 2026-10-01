@@ -39,6 +39,14 @@ public record ProfilePlan(
         };
     }
 
+    /** The same plan with other tiers, e.g. to rerun one failed tier of the baseline. */
+    public ProfilePlan withTiers(List<Tier> tiers) {
+        if (tiers.isEmpty()) {
+            throw new IllegalArgumentException("At least one tier is required");
+        }
+        return new ProfilePlan(profile, List.copyOf(tiers), modes, scenarios, k, repetitions);
+    }
+
     /** The same plan with other deployment modes, e.g. {@code smoke} with remote added (B08). */
     public ProfilePlan withModes(List<TargetMode> modes) {
         if (modes.isEmpty()) {

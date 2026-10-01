@@ -93,6 +93,13 @@ class RunCommand implements Callable<Integer> {
     String label;
 
     @Option(
+            names = "--tier",
+            split = ",",
+            paramLabel = "<tier>",
+            description = "Tiers to run, overriding the profile's (e.g. --tier standard to rerun one tier).")
+    List<Tier> tierOverride;
+
+    @Option(
             names = "--mode",
             split = ",",
             paramLabel = "<mode>",
@@ -143,6 +150,9 @@ class RunCommand implements Callable<Integer> {
         } catch (UnsupportedOperationException e) {
             spec.commandLine().getErr().println(e.getMessage());
             return EXIT_UNSUPPORTED;
+        }
+        if (tierOverride != null) {
+            plan = plan.withTiers(tierOverride.stream().distinct().toList());
         }
         if (modes != null) {
             plan = plan.withModes(modes.stream().distinct().toList());
