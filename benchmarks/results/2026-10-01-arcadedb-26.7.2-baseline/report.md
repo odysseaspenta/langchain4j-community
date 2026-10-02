@@ -60,10 +60,10 @@ All scenarios returned identical rankings in every repetition (`stable`); p50 ba
 
 | Directory | Content | Status | Commit |
 |---|---|---|---|
-| `2026-09-30-arcadedb-26.7.2-baseline-embedded/` | smoke + standard, embedded | complete | `6f053a75` (clean) |
-| `2026-10-01-arcadedb-26.7.2-baseline-remote/` | smoke remote (complete); standard remote failed — server OOM caused by overlapping readiness probes | incomplete | `6f053a75`* |
-| `2026-10-01-arcadedb-26.7.2-baseline-remote-standard/` | standard remote, rerun with non-overlapping probes | complete | `42d716e5`* |
+| `2026-09-30-arcadedb-26.7.2-baseline-embedded/` | smoke + standard, embedded | complete | `c8e2abaa` (clean) |
+| `2026-10-01-arcadedb-26.7.2-baseline-remote/` | smoke remote (complete); standard remote failed — server OOM caused by overlapping readiness probes | incomplete | `c8e2abaa`* |
+| `2026-10-01-arcadedb-26.7.2-baseline-remote-standard/` | standard remote, rerun with non-overlapping probes | complete | `2731bd8c`* |
 
-\* Marked `dirty` only because earlier runs' `report.md` files were untracked under `benchmarks/results/`; the store module was clean. The dirty check now ignores `benchmarks/results/`. The harness changes between `6f053a75` and `42d716e5` only affect the remote readiness wait, not loading or querying.
+\* Marked `dirty` only because earlier runs' `report.md` files were untracked under `benchmarks/results/`; the store module was clean. The dirty check now ignores `benchmarks/results/`. The harness changes between `c8e2abaa` and `2731bd8c` only affect the remote readiness wait, not loading or querying.
 
 Data: BEIR (Thakur et al., 2021), Natural Questions (Kwiatkowski et al., 2019), CC BY-SA.

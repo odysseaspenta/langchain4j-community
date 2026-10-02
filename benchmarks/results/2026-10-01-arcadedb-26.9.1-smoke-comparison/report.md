@@ -4,9 +4,9 @@ Same store code (`ArcadeDBEmbeddingStore` at `7de83f5`, unmodified), built with 
 
 | Run | Directory | Commit |
 |---|---|---|
-| 26.7.2 (B10 baseline, smoke rows) | `2026-09-30-arcadedb-26.7.2-baseline-embedded/`, `2026-10-01-arcadedb-26.7.2-baseline-remote/` | `6f053a75` |
-| 26.9.1, embedded + remote | `2026-10-01-arcadedb-26.9.1-baseline-smoke/` | `8ed8251d` (clean) |
-| 26.9.1, embedded, `--add-modules jdk.incubator.vector` | `2026-10-01-arcadedb-26.9.1-baseline-smoke-embedded-vector-api/` | `4a69814d` (clean) |
+| 26.7.2 (B10 baseline, smoke rows) | `2026-09-30-arcadedb-26.7.2-baseline-embedded/`, `2026-10-01-arcadedb-26.7.2-baseline-remote/` | `c8e2abaa` |
+| 26.9.1, embedded + remote | `2026-10-01-arcadedb-26.9.1-baseline-smoke/` | `4ea752e3` (clean) |
+| 26.9.1, embedded, `--add-modules jdk.incubator.vector` | `2026-10-01-arcadedb-26.9.1-baseline-smoke-embedded-vector-api/` | `2d3aca60` (clean) |
 
 ## Results
 

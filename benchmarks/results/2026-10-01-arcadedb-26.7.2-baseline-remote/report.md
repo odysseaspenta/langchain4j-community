@@ -7,7 +7,7 @@
 | Started / finished | 2026-10-01T05:12:15.488436743Z / 2026-10-01T06:45:59.341246313Z |
 | Machine | Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz, 4 cores, 47.0 GiB RAM |
 | JVM | 21.0.12.1 (OpenJDK 64-Bit Server VM 21.0.12.1+1-1-24.04.4-Ubuntu), max heap 4.0 GiB |
-| Git | 6f053a7569ffd42ec695a16e4ecac15d6590a398 (dirty) |
+| Git | c8e2abaa (dirty) |
 | Dataset | nq, seed 42, k = 100, 3 repetition(s) |
 | Embeddings | bge-small-en-v1.5, query embedding p50 5.44 ms (not included below) |
 
