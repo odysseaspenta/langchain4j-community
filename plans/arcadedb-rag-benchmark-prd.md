@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | Draft — requirements agreed, not yet implemented |
-| Date | 2026-09-27 (amended 2026-09-28, 2026-09-29 — see §5.1) |
+| Date | 2026-09-27 (amended 2026-09-28, 2026-09-29, 2026-10-02 — see §5.1) |
 | Owner | odysseas |
 | Scope | `embedding-stores/langchain4j-community-arcadedb` + new `benchmarks/langchain4j-community-rag-benchmark` module |
 | Companion | [`arcadedb-rag-benchmark-handoff.md`](arcadedb-rag-benchmark-handoff.md) (implementation handoff) |
@@ -60,7 +60,7 @@ Code review of the current store also shows it cannot be meaningfully benchmarke
 | D18 | No gate; human decision |
 | D19 | Run profiles `smoke` / `canonical` / `extended`; canonical ≤ ~8 h on reference machine |
 
-### 5.1 Amendments (2026-09-28, 2026-09-29)
+### 5.1 Amendments (2026-09-28, 2026-09-29, 2026-10-02)
 
 | # | Amendment | Affects |
 |---|---|---|
@@ -68,6 +68,7 @@ Code review of the current store also shows it cannot be meaningfully benchmarke
 | A2 | **Reference machine lowered** to ≥8 physical cores / ≥32 GB RAM (was ≥16 / ≥64 GB). | N2, R7, M7 |
 | A3 | **Development machine allowed.** Early implementation may happen on a lower-spec machine (N2a) before the reference machine is available; its results are development-only. | N2a |
 | A4 | **GPU passage embedding allowed** (2026-09-29). Bulk *passage* embedding may use an external GPU server running the same model weights and tokenizer (`BAAI/bge-small-en-v1.5` at revision `5c38ec7c405ec4b44b94cc5a9bb96e735b38267a`, whose `onnx/model.onnx` is the in-process model), provided it passes the compliance gate in `issues/B09a` (per-vector cosine ≥ 0.999 vs the in-process model; exact top-10 neighbours unchanged) and the cache manifest records the backend. Texts the server cannot embed whole (> 512 tokens) are embedded in-process. Query embedding and query-embedding latency stay in-process on the CPU. The benchmark itself stays all-Java; the server is a pinned container, like the ArcadeDB image. | D6, D14, F6, F7, F9 |
+| A5 | **Smoke tier only for measurements** (2026-10-02). Until further notice, baselines and before/after comparisons of the store fixes run on the `smoke` tier (100k passages) only. Reason: on ArcadeDB 26.9.1 — the target version — `hybrid-asis` at 1M passages takes ~7.4 s per query (26.7.2: 1.0 s), so the standard-tier protocol (cold pass + 3 repetitions × 3,452 queries, embedded + remote) would take ~2–3 days per run; a 26.9.1 standard run was stopped after ~3 h. The baseline for the fixes is the 26.9.1 smoke tier (embedded with the Java Vector API, and remote). The standard-tier embedding cache and ground truth (B09) and the 26.7.2 standard baseline (B10) are kept; standard-tier runs return once hybrid latency allows (e.g. after S7) and with B22. | F14, R1, acceptance 1, 5, 7; B10, B11, B16, B17, B20 |
 
 ## 6. Store improvement requirements (`ArcadeDBEmbeddingStore`)
 

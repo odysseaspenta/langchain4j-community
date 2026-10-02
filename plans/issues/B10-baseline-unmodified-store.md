@@ -43,3 +43,9 @@ Owner decisions (2026-10-02): the fixes target ArcadeDB **26.9.1**; embedded run
 - Store: unmodified (`7de83f5` code), built with `-Darcadedb.version=26.9.1`; same protocol as above (k = 100, cold + 3 repetitions, client CPUs 0–3, server 4–7).
 - Smoke tier: reuse the 2026-10-01 runs — `2026-10-01-arcadedb-26.9.1-baseline-smoke-embedded-vector-api/` (embedded, Vector API) and `2026-10-01-arcadedb-26.9.1-baseline-smoke/` (remote rows).
 - Standard tier: two new invocations, `--tier standard --mode embedded` (client heap 14 GB) and `--mode remote` (client 4 GB, server 24 GB).
+
+### 26.9.1 standard baseline — stopped (2026-10-02); PRD amendment A5
+- Attempt 1 (client heap 14 GB): the JVM thrashed — 972 full GCs in 1.5 h, heap 12–14 GB full after collection. The live set at 1M on 26.9.1 is ~8 GB (26.7.2: ~5 GB) and each hybrid query allocates heavily. Stopped; numbers unusable.
+- Attempt 2 (client heap 28 GB): healthy (2 full GCs in 3 h). Load and `dense` completed; **`hybrid-asis` ran at ~7.4 s per query** (query 826 at 99 min, query 1389 at 169 min after the scenario started) vs 1.0 s on 26.7.2 at 1M and 0.6 s on 26.9.1 at 100k. The full protocol would have taken ~28 h embedded plus a similar remote run. Owner decision: skip remote, stop the run (its results were not yet written — the runner writes after all scenarios of a load), and measure on the smoke tier only (**PRD A5**).
+- 26.9.1's graph build left **1,180 of 1,000,000 vectors unreachable** (0.12 %; 0.06 % at 100k).
+- **The baseline for the store fixes is therefore the 26.9.1 smoke tier:** `2026-10-01-arcadedb-26.9.1-baseline-smoke-embedded-vector-api/` (embedded, Java Vector API — the configuration all later embedded runs use) and the remote rows of `2026-10-01-arcadedb-26.9.1-baseline-smoke/`.

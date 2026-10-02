@@ -21,3 +21,8 @@
 ## Acceptance
 - New IT red before / green after; module ITs pass on 26.7.2.
 - Benchmark before/after: remote `dense` nDCG@10 and ANN recall at smoke.
+
+## Outcome (2026-10-02) — commit `48f97664` on `fix/arcadedb-remote-top-k` (stacked on S10; local, no PR yet)
+- Remote dense search now runs `SELECT expand(vector.neighbors('<idx>', <vector>, <fetch>))`; scores, `minScore` and the metadata post-filter over the over-fetched candidates are unchanged. The hybrid remote path already used `vector.fuse(vector.neighbors(...), …)` and did not have the per-row pattern.
+- New IT: 40 random vectors whose nearest neighbours are last in scan order; top-3 must equal brute force, unfiltered and with a metadata filter — fails on the old query, passes now. Store suite green on 26.9.1 and 26.7.2.
+- Before/after on the benchmark: B11 (smoke tier, PRD A5).

@@ -30,8 +30,8 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [B09a](B09a-gpu-embedding-backend.md) | GPU embedding backend (AMD ROCm) + compliance gate (PRD A4) | 2 Scale-up | B03 | ☑ |
 | [B10](B10-baseline-unmodified-store.md) | Baseline run on the unmodified store | 3 Baseline | B07, B08, B09 | ☑ |
 | [S1](S1-batched-embedded-ingestion.md) | Batched embedded ingestion (+ deferred graph build) | 4 Viability fixes | B10 | ☐ |
-| [S2](S2-batched-remote-ingestion.md) | Batched remote ingestion | 4 Viability fixes | B10 | ☐ |
-| [S3](S3-correct-remote-top-k.md) | Correct remote top-k | 4 Viability fixes | B10 | ☐ |
+| [S2](S2-batched-remote-ingestion.md) | Batched remote ingestion | 4 Viability fixes | B10 | ◐ `196917df`, local |
+| [S3](S3-correct-remote-top-k.md) | Correct remote top-k | 4 Viability fixes | B10 | ◐ `48f97664`, local |
 | [S4](S4-per-query-efsearch.md) | Per-query `efSearch` | 4 Viability fixes | B10, S3 (remote part) | ☐ |
 | [B11](B11-integrate-s1-s4-validate.md) | Integrate S1–S4, validate acceptance 3 | 4 Viability fixes | S1–S4, B09 | ☐ |
 | [B12](B12-lexical-scenario.md) | `lexical` scenario | 5 Canonical | B11 | ☐ |
@@ -42,8 +42,8 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [S8](S8-fulltext-query-sanitising.md) | Full-text query sanitising + dense fallback | 5 Canonical | B10 | ☐ |
 | [B19](B19-hybrid-variants-and-tuned.md) | `hybrid-variants` sweep → freeze `hybrid-tuned` | 5 Canonical | S7, S8, B12 | ☐ |
 | [B16](B16-canonical-profile.md) | `canonical` profile (standard tier) + loaded-DB reuse/cache | 5 Canonical | B12–B14, B19 | ☐ |
-| [S10](S10-version-compatibility.md) | Store version compatibility (26.7.2 + latest) | 6 Versions | — | ◐ fix on `fix/arcadedb-version-compat`; PR pending |
-| [S11](S11-remote-text-escaping.md) | Remote mode: bind values as parameters (line breaks break SQL) | Not scheduled — next integration version | — | note only |
+| [S10](S10-version-compatibility.md) | Store version compatibility (26.7.2 + latest) | 6 Versions | — | ◐ `269dc68c`, local (no PR until all fixes are done) |
+| [S11](S11-remote-text-escaping.md) | Remote mode: bind values as parameters (line breaks break SQL) | 4 Viability fixes | — | ◐ `eca574f6`, local |
 | [B17](B17-version-comparison-run.md) | Version comparison run + report | 6 Versions | B15, B16, S10 | ☐ |
 | [S5](S5-remove-scan-fallback.md) | Remove O(N) scan fallback at scale | 7 Extended | B10 | ☐ |
 | [S6](S6-expose-index-options.md) | Expose index options (quantization, similarity) | 7 Extended | B10 | ☐ |
@@ -76,6 +76,10 @@ graph LR
   B13 --> S9
   B17 & B20 --> B22
 ```
+
+## Smoke-tier measurements (2026-10-02, PRD A5)
+
+Until further notice, baselines and before/after comparisons use the **smoke tier only**: on ArcadeDB 26.9.1 hybrid search at 1M passages takes ~7.4 s per query, so a standard-tier run would take days. The baseline for the store fixes is the 26.9.1 smoke tier (B10, §26.9.1). Standard-tier work (B11 standard, B16, B17, B20) waits until hybrid latency allows, or B22.
 
 ## Target version decision (2026-10-01)
 
