@@ -37,3 +37,9 @@
 - Headline: dense nDCG@10 0.853 (smoke) / 0.623 (standard), hybrid-asis 0.453 / 0.321 with p50 1.0 s at 1M embedded; remote dense unusable; remote ingestion ~550 vs ~1,700 docs/s embedded. Noise bands (p50 across 3 repetitions) < 0.5 %.
 - Harness: the git dirty check now ignores `benchmarks/results/` (earlier runs' untracked `report.md` files had marked the remote runs dirty).
 - R3 (rebuild behaviour): embedded load rate flat 100k → 1M (no stall); post-load graph build 786 s embedded / ~907 s remote at 1M; remote concurrent-rebuild OOM documented above.
+
+## 26.9.1 baseline — the "before" for the store fixes (started 2026-10-02)
+Owner decisions (2026-10-02): the fixes target ArcadeDB **26.9.1**; embedded runs use the **Java Vector API** from now on (`rag-bench` passes `--add-modules jdk.incubator.vector`); **no upstream PR until all integration fixes are done**.
+- Store: unmodified (`7de83f5` code), built with `-Darcadedb.version=26.9.1`; same protocol as above (k = 100, cold + 3 repetitions, client CPUs 0–3, server 4–7).
+- Smoke tier: reuse the 2026-10-01 runs — `2026-10-01-arcadedb-26.9.1-baseline-smoke-embedded-vector-api/` (embedded, Vector API) and `2026-10-01-arcadedb-26.9.1-baseline-smoke/` (remote rows).
+- Standard tier: two new invocations, `--tier standard --mode embedded` (client heap 14 GB) and `--mode remote` (client 4 GB, server 24 GB).

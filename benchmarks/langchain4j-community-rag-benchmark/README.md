@@ -28,7 +28,7 @@ One property selects the ArcadeDB version for both modes (PRD F13):
 
 ## Running measurements
 
-Use the launcher, which applies the PRD's JVM isolation settings (pinned heap, G1, GC log copied into the results):
+Use the launcher, which applies the PRD's JVM isolation settings (pinned heap, G1, GC log copied into the results) and enables the Java Vector API (`--add-modules jdk.incubator.vector`) so embedded ArcadeDB uses SIMD like the server image does (since 2026-10-02; earlier embedded runs, including the 26.7.2 baseline, ran without it). `RAG_BENCH_JAVA_OPTS` adds further JVM options:
 
 ```shell
 RAG_BENCH_HEAP=8g benchmarks/langchain4j-community-rag-benchmark/rag-bench --machine-class reference run --profile smoke

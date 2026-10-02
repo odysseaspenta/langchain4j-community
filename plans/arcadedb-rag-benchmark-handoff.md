@@ -23,7 +23,9 @@ Read this first when picking the work up on the implementation machine (human or
 - **Open decisions (owner):** Vector API for embedded runs from now on (would need the embedded baseline re-run); which ArcadeDB version the S-fixes target; re-scoping S7/S8 in light of 26.9.1.
 - **Decision (2026-10-01): fixes target ArcadeDB 26.9.1** (upstream `main` already defaults to it). `upstream` remote added on this machine.
 - **S10 (2026-10-01):** branch `fix/arcadedb-version-compat` (commit `269dc68c`): remote store re-open with different index settings failed on 26.8.1+ (fixed); remote ITs now test against the matching server image. Store suite green on 26.9.1 and 26.7.2. Not pushed / no PR yet.
-- **Next:** S3 (remote top-k), then S11 → S2, S8, S1, S4; investigate 26.9.1 hybrid before re-scoping S7. A 26.9.1 standard-tier baseline is needed as the "before" for S-fix comparisons.
+- **Decisions (2026-10-02):** no upstream PR until all integration fixes are done (fix branches stay local/fork); embedded runs use the Java Vector API (launcher default); commit messages carry no AI attribution trailers (history rewritten, see `plans/commit-hash-map.md`).
+- **Running (2026-10-02):** 26.9.1 standard-tier baseline (B10 §26.9.1), the "before" for the S-fixes.
+- **Next:** S3 (remote top-k), then S11 → S2, S8, S1, S4; investigate 26.9.1 hybrid before re-scoping S7.
 - **First steps on the faster machine:**
   1. Build: `./mvnw -Pbenchmarks -pl benchmarks/langchain4j-community-rag-benchmark -am package -Dmaven.test.skip=false` (JDK 21; note `MAVEN_OPTS` may skip tests).
   2. Run: `RAG_BENCH_DATA_DIR=/data/rag-bench RAG_BENCH_HEAP=8g RAG_BENCH_CLIENT_CPUS=0-3 benchmarks/langchain4j-community-rag-benchmark/rag-bench --machine-class reference run --profile smoke --mode embedded,remote`. That downloads NQ, embeds the smoke tier (~100k passages), computes ground truth, loads ArcadeDB embedded and in Docker (`docker pull arcadedata/arcadedb:26.7.2` first) and writes results.
