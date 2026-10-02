@@ -42,7 +42,7 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [S8](S8-fulltext-query-sanitising.md) | Full-text query sanitising + dense fallback | 5 Canonical | B10 | ☐ |
 | [B19](B19-hybrid-variants-and-tuned.md) | `hybrid-variants` sweep → freeze `hybrid-tuned` | 5 Canonical | S7, S8, B12 | ☐ |
 | [B16](B16-canonical-profile.md) | `canonical` profile (standard tier) + loaded-DB reuse/cache | 5 Canonical | B12–B14, B19 | ☐ |
-| [S10](S10-version-compatibility.md) | Store version compatibility (26.7.2 + latest) | 6 Versions | — | ☐ |
+| [S10](S10-version-compatibility.md) | Store version compatibility (26.7.2 + latest) | 6 Versions | — | ◐ fix on `fix/arcadedb-version-compat`; PR pending |
 | [S11](S11-remote-text-escaping.md) | Remote mode: bind values as parameters (line breaks break SQL) | Not scheduled — next integration version | — | note only |
 | [B17](B17-version-comparison-run.md) | Version comparison run + report | 6 Versions | B15, B16, S10 | ☐ |
 | [S5](S5-remove-scan-fallback.md) | Remove O(N) scan fallback at scale | 7 Extended | B10 | ☐ |
@@ -76,6 +76,10 @@ graph LR
   B13 --> S9
   B17 & B20 --> B22
 ```
+
+## Target version decision (2026-10-01)
+
+The store fixes target the LangChain4j ArcadeDB integration **running on ArcadeDB 26.9.1** (owner decision). Upstream `main` already defaults to 26.9.1. Consequences: S-fix branches build and are tested against 26.9.1; S10 is done first; before/after measurements for S1–S9 need a 26.9.1 "before" (the B10 baseline is 26.7.2; the 26.9.1 smoke comparison covers the smoke tier); S7 is re-scoped around 26.9.1's hybrid behaviour (accuracy already 0.79 nDCG@10, latency ~6× worse) and newer ArcadeDB features that may speed up hybrid search.
 
 ## Review notes (deviations from handoff §5 / open decisions)
 
