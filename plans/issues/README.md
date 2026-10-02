@@ -39,7 +39,7 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [B14](B14-efsearch-sweep-concurrency.md) | efSearch sweep, concurrency, recall-vs-latency | 5 Canonical | B11 | ☐ |
 | [B15](B15-compare-report.md) | `compare` command (Markdown + SVG, noise bands, thresholds) | 5 Canonical | B07 | ☐ |
 | [S7](S7-expose-hybrid-options.md) | Expose hybrid / full-text options | 5 Canonical | B10 | ☐ |
-| [S8](S8-fulltext-query-sanitising.md) | Full-text query sanitising + dense fallback | 5 Canonical | B10 | ☐ |
+| [S8](S8-fulltext-query-sanitising.md) | Full-text query sanitising + dense fallback | 5 Canonical | B10 | ◐ `c4b49d25`, local |
 | [B19](B19-hybrid-variants-and-tuned.md) | `hybrid-variants` sweep → freeze `hybrid-tuned` | 5 Canonical | S7, S8, B12 | ☐ |
 | [B16](B16-canonical-profile.md) | `canonical` profile (standard tier) + loaded-DB reuse/cache | 5 Canonical | B12–B14, B19 | ☐ |
 | [S10](S10-version-compatibility.md) | Store version compatibility (26.7.2 + latest) | 6 Versions | — | ◐ `269dc68c`, local (no PR until all fixes are done) |
