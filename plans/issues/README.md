@@ -29,7 +29,7 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [B09](B09-standard-embedding-and-ground-truth.md) | Standard-tier embedding cache + ground truth (run) | 2 Scale-up | B00, B03, B04 | ☑ |
 | [B09a](B09a-gpu-embedding-backend.md) | GPU embedding backend (AMD ROCm) + compliance gate (PRD A4) | 2 Scale-up | B03 | ☑ |
 | [B10](B10-baseline-unmodified-store.md) | Baseline run on the unmodified store | 3 Baseline | B07, B08, B09 | ☑ |
-| [S1](S1-batched-embedded-ingestion.md) | Batched embedded ingestion (+ deferred graph build) | 4 Viability fixes | B10 | ☐ |
+| [S1](S1-batched-embedded-ingestion.md) | Batched embedded ingestion (+ deferred graph build) | 4 Viability fixes | B10 | ◐ `7d70c9f0`, local (deferred build dropped) |
 | [S2](S2-batched-remote-ingestion.md) | Batched remote ingestion | 4 Viability fixes | B10 | ◐ `196917df`, local |
 | [S3](S3-correct-remote-top-k.md) | Correct remote top-k | 4 Viability fixes | B10 | ◐ `48f97664`, local |
 | [S4](S4-per-query-efsearch.md) | Per-query `efSearch` | 4 Viability fixes | B10, S3 (remote part) | ☐ |
@@ -44,6 +44,7 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [B16](B16-canonical-profile.md) | `canonical` profile (standard tier) + loaded-DB reuse/cache | 5 Canonical | B12–B14, B19 | ☐ |
 | [S10](S10-version-compatibility.md) | Store version compatibility (26.7.2 + latest) | 6 Versions | — | ◐ `269dc68c`, local (no PR until all fixes are done) |
 | [S11](S11-remote-text-escaping.md) | Remote mode: bind values as parameters (line breaks break SQL) | 4 Viability fixes | — | ◐ `eca574f6`, local |
+| [S12](S12-embedded-id-reuse.md) | Embedded: an id can never be used again (upsert / re-add fail); remote has no upsert | 4 Viability fixes | — | ☐ found 2026-10-03, decision pending |
 | [B17](B17-version-comparison-run.md) | Version comparison run + report | 6 Versions | B15, B16, S10 | ☐ |
 | [S5](S5-remove-scan-fallback.md) | Remove O(N) scan fallback at scale | 7 Extended | B10 | ☐ |
 | [S6](S6-expose-index-options.md) | Expose index options (quantization, similarity) | 7 Extended | B10 | ☐ |
