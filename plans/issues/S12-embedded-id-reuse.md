@@ -15,3 +15,15 @@
 - Embedded: when soft-deleting, also clear the record's `id` (or move it to another property), so the unique index no longer holds it; the soft-delete design (kept for HNSW connectivity) stays. Upsert and re-add then work, within and across batches.
 - Remote: make `addAll` an upsert too (e.g. `DELETE FROM T WHERE doc_id = :idN` before each INSERT in the batch script), so both modes behave the same.
 - ITs: re-add existing id (keeps the last version), repeated id within one batch and across batches, add after `removeAll(id)` — both modes.
+
+## Status (2026-10-16) — not fixed; re-verified on the fix stack (S10…S1 + 26.10.2 bump) against ArcadeDB 26.10.2
+
+| Step | Embedded | Remote |
+|---|---|---|
+| add `x`=v1 | OK | OK |
+| add `x`=v2 again | **`DuplicatedKeyException`** — still holds v1 | OK — **two records** `x`=v1, `x`=v2 |
+| `removeAll(x)`, then add `x`=v3 | removal OK, **re-add fails** (`DuplicatedKeyException`) | OK |
+| `addAll([y, y])` in one call | **whole call fails** (with S1 the batch is one transaction, so neither `y` is stored; before S1 the first `y` was stored, then the second failed) | OK — two records `y` |
+
+- Cause unchanged: the soft-deleted embedded record keeps its `id`, and the unique LSM index on `id` rejects the new record. Remote mode has no unique index and does plain inserts.
+- Decision needed: (1) the intended semantics of `addAll` with an id that already exists — **upsert (replace)** is what the embedded code attempts and what the proposed fix implements in both modes; the alternative is to reject duplicates consistently in both modes; (2) whether remote mode should change from "duplicate records" to upsert (behaviour change for remote users, but duplicates under one id are almost certainly unintended — `removeAll(id)` already treats the id as one key).
