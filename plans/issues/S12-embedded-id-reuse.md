@@ -27,3 +27,11 @@
 
 - Cause unchanged: the soft-deleted embedded record keeps its `id`, and the unique LSM index on `id` rejects the new record. Remote mode has no unique index and does plain inserts.
 - Decision needed: (1) the intended semantics of `addAll` with an id that already exists — **upsert (replace)** is what the embedded code attempts and what the proposed fix implements in both modes; the alternative is to reject duplicates consistently in both modes; (2) whether remote mode should change from "duplicate records" to upsert (behaviour change for remote users, but duplicates under one id are almost certainly unintended — `removeAll(id)` already treats the id as one key).
+
+## Outcome (2026-10-16) — commit `f9e93e07` on `fix/arcadedb-embedded-id-reuse` (stacked on the 26.10.2 bump; local, no PR yet)
+- Owner decision: **upsert by id in both modes**.
+- Embedded: soft delete (by id and by filter, one helper) marks the record deleted, removes it from the vector index **and removes its `id`**, so the unique id index releases it; a record soft-deleted before this fix releases its id the first time the id is reused (without decrementing the active count twice).
+- Remote: each insert in the batch script is preceded by `DELETE FROM <type> WHERE doc_id = :idN`; schema init adds a **non-unique** index on `doc_id` (non-unique so it can be created on databases that already hold duplicates).
+- Within one `addAll`, the last occurrence of a repeated id wins, within and across batches.
+- ITs (shared helper, both modes, `batchSize(3)`): replace an existing id, add again after `removeAll(id)`, repeated ids within and across batches — all four fail on the previous code (embedded `DuplicatedKeyException`, remote duplicate records). Store suite 255 tests green on 26.10.2 and 26.9.1.
+- Cost: remote `addAll` ~4,630 → ~4,200 embeddings/s (−10 %; 20k rows, 26.10.2, client CPUs 0–3, server 4–7).

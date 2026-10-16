@@ -44,7 +44,7 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [B16](B16-canonical-profile.md) | `canonical` profile (standard tier) + loaded-DB reuse/cache | 5 Canonical | B12–B14, B19 | ☐ |
 | [S10](S10-version-compatibility.md) | Store version compatibility (26.7.2 + latest) | 6 Versions | — | ◐ `269dc68c`, local (no PR until all fixes are done) |
 | [S11](S11-remote-text-escaping.md) | Remote mode: bind values as parameters (line breaks break SQL) | 4 Viability fixes | — | ◐ `eca574f6`, local |
-| [S12](S12-embedded-id-reuse.md) | Embedded: an id can never be used again (upsert / re-add fail); remote has no upsert | 4 Viability fixes | — | ☐ found 2026-10-03, decision pending |
+| [S12](S12-embedded-id-reuse.md) | Embedded: an id can never be used again (upsert / re-add fail); remote has no upsert | 4 Viability fixes | — | ◐ `f9e93e07`, local (upsert in both modes) |
 | [B17](B17-version-comparison-run.md) | Version comparison run + report | 6 Versions | B15, B16, S10 | ☐ |
 | [S5](S5-remove-scan-fallback.md) | Remove O(N) scan fallback at scale | 7 Extended | B10 | ☐ |
 | [S6](S6-expose-index-options.md) | Expose index options (quantization, similarity) | 7 Extended | B10 | ☐ |
