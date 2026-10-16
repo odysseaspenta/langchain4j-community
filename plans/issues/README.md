@@ -82,6 +82,10 @@ graph LR
 
 Until further notice, baselines and before/after comparisons use the **smoke tier only**: on ArcadeDB 26.9.1 hybrid search at 1M passages takes ~7.4 s per query, so a standard-tier run would take days. The baseline for the store fixes is the 26.9.1 smoke tier (B10, §26.9.1). Standard-tier work (B11 standard, B16, B17, B20) waits until hybrid latency allows, or B22.
 
+## Target version decision (updated 2026-10-16): ArcadeDB 26.10.2
+
+The store fixes target the integration **running on ArcadeDB 26.10.2** (owner decision 2026-10-16, superseding 26.9.1). Smoke-tier comparison (`benchmarks/results/2026-10-16-arcadedb-26.10.2-smoke-comparison/report.md`): same accuracy, hybrid 10–13 % faster, faster ingestion and time-to-searchable, fewer unreachable vectors, rebuild-concurrency/memory/filter fixes; dense p50 +0.2 ms; hybrid still ~5× slower than 26.7.2 (S7); the 30 s HTTP/2 cut-off remains. The fix stack passes all store tests on 26.10.2. Building against 26.10.2 needs `slf4j-api` 2.0.20 (the repository manages 2.0.18), so the fix stack gets a version-bump commit. **The "before" for the fixes is now the 26.10.2 smoke run** (`2026-10-16-arcadedb-26.10.2-baseline-smoke/`, unmodified store, embedded with the Vector API + remote). Benchmark builds use `-Darcadedb.version=26.10.2 -Denforcer.skip=true` until the benchmark branch picks up the bump.
+
 ## Target version decision (2026-10-01)
 
 The store fixes target the LangChain4j ArcadeDB integration **running on ArcadeDB 26.9.1** (owner decision). Upstream `main` already defaults to 26.9.1. Consequences: S-fix branches build and are tested against 26.9.1; S10 is done first; before/after measurements for S1–S9 need a 26.9.1 "before" (the B10 baseline is 26.7.2; the 26.9.1 smoke comparison covers the smoke tier); S7 is re-scoped around 26.9.1's hybrid behaviour (accuracy already 0.79 nDCG@10, latency ~6× worse) and newer ArcadeDB features that may speed up hybrid search.

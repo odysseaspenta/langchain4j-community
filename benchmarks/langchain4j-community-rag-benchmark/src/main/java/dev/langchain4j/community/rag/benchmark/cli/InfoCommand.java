@@ -1,6 +1,7 @@
 package dev.langchain4j.community.rag.benchmark.cli;
 
 import dev.langchain4j.community.rag.benchmark.config.BenchmarkConfig;
+import dev.langchain4j.community.rag.benchmark.targets.arcadedb.ArcadeDbLogging;
 import dev.langchain4j.community.rag.benchmark.targets.arcadedb.ArcadeDbVersion;
 import java.io.PrintWriter;
 import java.util.concurrent.Callable;
@@ -19,8 +20,11 @@ class InfoCommand implements Callable<Integer> {
     CommandSpec spec;
 
     @Override
-    public Integer call() {
+    public Integer call() throws Exception {
         BenchmarkConfig config = cli.config();
+        // Before ArcadeDB first logs: otherwise it writes ./log/ into the working directory (and marks a later run in
+        // the repository dirty).
+        ArcadeDbLogging.configure(config.dataDir().resolve("logs"));
         PrintWriter out = spec.commandLine().getOut();
         out.println("ArcadeDB version: " + ArcadeDbVersion.onClasspath());
         out.println("ArcadeDB image:   " + ArcadeDbVersion.dockerImage());

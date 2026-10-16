@@ -37,7 +37,19 @@ class BenchmarkCliTest {
 
     @Test
     void should_print_arcadedb_version_and_inherited_options_after_subcommand() {
-        int exitCode = execute("info", "--data-dir", tmp.toString(), "--seed", "7");
+        String loggingConfig = System.getProperty("java.util.logging.config.file");
+        int exitCode;
+        try {
+            exitCode = execute("info", "--data-dir", tmp.toString(), "--seed", "7");
+            if (loggingConfig == null) {
+                // ArcadeDB logs into the data directory, not ./log in the working directory.
+                assertThat(tmp.resolve("logs").resolve("arcadedb-log.properties")).exists();
+            }
+        } finally {
+            if (loggingConfig == null) {
+                System.clearProperty("java.util.logging.config.file");
+            }
+        }
 
         assertThat(exitCode).isZero();
         assertThat(ArcadeDbVersion.onClasspath()).isNotBlank();
