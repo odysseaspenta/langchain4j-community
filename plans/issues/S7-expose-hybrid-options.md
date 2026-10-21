@@ -18,3 +18,14 @@
 
 ## Acceptance
 - ITs per option; `hybrid-asis` results unchanged with defaults; enables B19 through the store API.
+
+## Re-scope proposal after the hybrid investigation (2026-10-17, target ArcadeDB 26.10.2)
+See `benchmarks/results/2026-10-17-arcadedb-26.10.2-hybrid-investigation/report.md`. Findings: the store's full-text source is unbounded (an NQ question matches ~86 % of the passages; matching plus the per-record `deleted` check is ~470 of 543 ms); 26.10.2 makes a score-ordered, bounded full-text source cheap; an EnglishAnalyzer index cuts matches to ~20k; equal-weight RRF costs ~0.06 nDCG@10 against dense-only.
+
+Proposed scope:
+1. **Bounded, score-ordered full-text source** (`ORDER BY $score DESC LIMIT <fetch>`; embedded: `deleted` filter on the bounded set) — default; 543 → ~130 ms with no accuracy change.
+2. **Fusion options**: `RRF` with `k` and per-source weights, `LINEAR`, `DBSF` (needs the bounded source's `$score`). Measured best on NQ: RRF 8:1 towards dense (with 400 dense candidates) 0.853, LINEAR 0.844–0.836 vs equal RRF 0.794.
+3. **Full-text index options** on creation: analyzer (e.g. EnglishAnalyzer) and BM25 `k1`/`b`; changing them requires an index rebuild. EnglishAnalyzer: hybrid ~21–25 ms, lexical 0.60 → 0.68.
+4. Defaults (owner decision): compatible (RRF equal weights, default analyzer) vs measured-best (weighted RRF or LINEAR; EnglishAnalyzer for English text).
+
+**Owner decision (2026-10-21): measured-best defaults.** Bounded, score-ordered full-text source; dense candidates as in dense search (`max(4k, k + 100)`), full-text candidates `2k`; RRF weighted 8:1 towards dense; `EnglishAnalyzer` for newly created full-text indexes (configurable; non-English text should choose another analyzer — to be flagged in the PR). Implementation on the fix stack, stacked on S12.
