@@ -29,3 +29,10 @@ Proposed scope:
 4. Defaults (owner decision): compatible (RRF equal weights, default analyzer) vs measured-best (weighted RRF or LINEAR; EnglishAnalyzer for English text).
 
 **Owner decision (2026-10-21): measured-best defaults.** Bounded, score-ordered full-text source; dense candidates as in dense search (`max(4k, k + 100)`), full-text candidates `2k`; RRF weighted 8:1 towards dense; `EnglishAnalyzer` for newly created full-text indexes (configurable; non-English text should choose another analyzer — to be flagged in the PR). Implementation on the fix stack, stacked on S12.
+
+## Outcome (2026-10-21) — commit `35f2debc` on `feat/arcadedb-hybrid-options` (stacked on S12; local, no PR yet)
+- Hybrid query: full-text source bounded to the top `2k` by `$score` (`10k` with a metadata filter), projecting `$score AS score`; embedded filters soft-deleted records after bounding; dense candidates `max(4k, k + 100)` (`10k` filtered); `vector.fuse(..., { fusion, k, weights, limit })`.
+- New builder options (both builders): `hybridFusion` (`ArcadeDBHybridFusion.RRF | LINEAR | DBSF`), `hybridWeights(dense, fullText)`, `hybridRrfK`, `fullTextAnalyzer`, `fullTextBm25K1`, `fullTextBm25B`. Defaults (owner decision, measured-best): RRF, weights 8:1, k 60, `EnglishAnalyzer`; BM25 parameters unset (ArcadeDB defaults). Full-text index settings apply on creation; an existing full-text index is kept (remote now checks for it like the vector index; embedded creates it with `CREATE INDEX … FULL_TEXT METADATA {…}`).
+- Tests: `ArcadeDBHybridSettingsTest` (options rendering, validation); ITs for each fusion (remote + embedded), custom analyzer/BM25 (remote), stemming with the default EnglishAnalyzer vs none with StandardAnalyzer (embedded, via `SEARCH_INDEX`), re-open with another analyzer keeps the index. Store suite 264 tests green on 26.10.2 and 26.9.1.
+- **To flag in the PR:** the EnglishAnalyzer default is language-specific; non-English applications should set `fullTextAnalyzer`.
+- End-to-end before/after on the benchmark: B11.
