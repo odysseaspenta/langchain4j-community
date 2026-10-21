@@ -258,6 +258,24 @@
                 <version>${project.version}</version>
             </dependency>
 
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-community-web-search-engine-brave</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-community-web-search-engine-serply</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-community-web-search-engine-firecrawl</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
             <!-- mcp -->
             <dependency>
                 <groupId>dev.langchain4j</groupId>
@@ -281,6 +299,12 @@
             <dependency>
                 <groupId>dev.langchain4j</groupId>
                 <artifactId>langchain4j-community-tool-live-tennis</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-community-tool-salt</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

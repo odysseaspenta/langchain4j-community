@@ -155,8 +155,7 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
             for (Document document : batch) {
                 ids.add(document.id());
                 embeddings.add(Embedding.from(document.vector()));
-                String text = remote == null ? document.text() : singleLine(document.text());
-                segments.add(TextSegment.from(text, new Metadata(document.metadata())));
+                segments.add(TextSegment.from(document.text(), new Metadata(document.metadata())));
             }
             store.addAll(ids, embeddings, segments);
             loaded += batch.size();
@@ -211,19 +210,9 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
                 serverPeak);
     }
 
-    /**
-     * The unmodified store's remote {@code addAll} inlines text into SQL string literals and escapes only quotes and
-     * backslashes, so any line break is a SQL syntax error and every NQ passage ({@code title + "\n" + text}) fails.
-     * Remote mode therefore stores line breaks as spaces. Embeddings are unaffected, and the full-text analyzer splits
-     * on both alike, so retrieval is unchanged. Remove once the store binds text as a parameter (S11).
-     */
     private static String abbreviate(String text) {
         String value = String.valueOf(text);
         return value.length() <= 160 ? value : value.substring(0, 160) + "…";
-    }
-
-    static String singleLine(String text) {
-        return text.replace("\r\n", " ").replace('\r', ' ').replace('\n', ' ');
     }
 
     private void openEmbedded() {
@@ -456,6 +445,8 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
         description.put("quantization", "NONE (not configurable before S6)");
         description.put("similarity", "COSINE (store default before S6)");
         description.put("vectorSubIndexes", vectorSubIndexes);
+        // The harness sets none of the store's ingestion or hybrid options: every run measures the store's defaults.
+        description.put("storeOptions", "store defaults (batch size, hybrid fusion, full-text analyzer)");
         if (remote == null) {
             description.put("graphBuild", "LSMVectorIndex.buildVectorGraphNow() after loading");
             description.put("effectiveIndex", effectiveIndex);
@@ -466,9 +457,6 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
                             + " (probe is harness SQL, not via store API)");
             description.put("readiness", readiness);
             description.put("effectiveIndex", "not observable over HTTP; created with the settings above");
-            description.put(
-                    "storedText",
-                    "line breaks replaced by spaces (unmodified remote addAll cannot insert them; see S11)");
             description.put("queryTimeoutMillis", remote.queryTimeout().toMillis());
             description.put("queryTimeoutMechanism", "ALTER DATABASE `arcadedb.command.timeout` once searchable");
             CpuSet clientCpus = CpuSet.ofThisProcess();
