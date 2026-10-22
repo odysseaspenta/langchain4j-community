@@ -32,8 +32,8 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [S1](S1-batched-embedded-ingestion.md) | Batched embedded ingestion (+ deferred graph build) | 4 Viability fixes | B10 | ◐ `7d70c9f0`, local (deferred build dropped) |
 | [S2](S2-batched-remote-ingestion.md) | Batched remote ingestion | 4 Viability fixes | B10 | ◐ `196917df`, local |
 | [S3](S3-correct-remote-top-k.md) | Correct remote top-k | 4 Viability fixes | B10 | ◐ `48f97664`, local |
-| [S4](S4-per-query-efsearch.md) | Per-query `efSearch` | 4 Viability fixes | B10, S3 (remote part) | ☐ |
-| [B11](B11-integrate-s1-s4-validate.md) | Integrate S1–S4, validate acceptance 3 | 4 Viability fixes | S1–S4, B09 | ◐ smoke before/after done; S4 + remote findings open |
+| [S4](S4-per-query-efsearch.md) | Per-query `efSearch` | 4 Viability fixes | B10, S3 (remote part) | ◐ `e4df5e74`, local (efSearch, remote projection, fuse limit) |
+| [B11](B11-integrate-s1-s4-validate.md) | Integrate S1–S4, validate acceptance 3 | 4 Viability fixes | S1–S4, B09 | ✅ smoke before/after incl. S4 (A5: no `standard`) |
 | [B12](B12-lexical-scenario.md) | `lexical` scenario | 5 Canonical | B11 | ☐ |
 | [B13](B13-filtered-scenario.md) | `filtered` scenario | 5 Canonical | B11 | ☐ |
 | [B14](B14-efsearch-sweep-concurrency.md) | efSearch sweep, concurrency, recall-vs-latency | 5 Canonical | B11 | ☐ |

@@ -45,3 +45,25 @@
 2. **Remote overhead is large:** dense 30 ms vs 3.3 ms embedded, hybrid 128 ms vs 22 ms. Both return up to 400 candidate rows, including the 384-float embedding, as JSON per query, so result transfer is the first suspect, but it does not explain why hybrid's overhead (~106 ms) is four times dense's (~27 ms). To profile before proposing a fix (e.g. a fuse/neighbour limit of k when there is no filter, or not returning embeddings unless needed).
 
 Both full-text indexes were checked in the kept databases: `EnglishAnalyzer`, BM25, 100,000 documents — the remote gap is not the analyzer.
+
+## Update 2026-10-22: S4 and the remote findings
+
+Both open findings were investigated (`2026-10-22-arcadedb-26.10.2-dense-recall-and-remote-overhead`) and fixed in S4
+(`e4df5e74`): remote dense fetched only `k` neighbours (narrower beam), rows came back twice (nested `record`), and
+hybrid returned all 400 fused candidates. Smoke run `2026-10-22-arcadedb-26.10.2-baseline-smoke-s4` (benchmark commit
+`f6109cb8`; marked dirty only by the untracked standalone `tools/DenseProbe.java`, not part of the harness; store
+module clean), same protocol:
+
+| | B11 after (`7dd065c8`) | With S4 (`f6109cb8`) |
+|---|---|---|
+| Remote `dense` nDCG@10 / ANN recall@10 | 0.8318 / 0.9702 | **0.8511 / 0.9927** |
+| Remote `dense` p50 / p95 / p99 | 29.9 / 31.5 / 35.3 ms | **19.2 / 22.0 / 23.6 ms** |
+| Remote `hybrid-asis` nDCG@10 | 0.8525 | 0.8529 |
+| Remote `hybrid-asis` p50 / p95 / p99 | 127.9 / 147.9 / 159.4 ms | **34.7 / 55.5 / 65.9 ms** |
+| Embedded `dense` nDCG@10 / p50 | 0.8537 / 3.26 ms | 0.8530 / 3.30 ms |
+| Embedded `hybrid-asis` nDCG@10 / p50 | 0.8557 / 21.7 ms | 0.8547 / 20.4 ms |
+| Load embedded / remote | 8,388 / 2,830 docs/s | 8,263 / 2,784 docs/s |
+
+Remote accuracy now matches embedded. Overall against the unmodified store (2026-10-16): remote dense from aborted
+to 19 ms at nDCG@10 0.851; remote hybrid 477 → 35 ms (nDCG@10 0.794 → 0.853). The remaining remote overhead
+(~16 ms per 100 rows) is client-side JSON parsing of the embeddings in ArcadeDB's `RemoteDatabase`.
