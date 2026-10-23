@@ -1,6 +1,7 @@
 package dev.langchain4j.community.rag.benchmark.runner;
 
 import dev.langchain4j.community.rag.benchmark.dataset.Tier;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -30,6 +31,18 @@ public record ProfilePlan(
                         List.of(Scenario.DENSE, Scenario.HYBRID_AS_IS),
                         100,
                         3);
+            case FILTERED -> {
+                List<Scenario> scenarios = new ArrayList<>(List.of(Scenario.DENSE));
+                Scenario.FILTER_BUCKETS.forEach(b -> scenarios.add(Scenario.denseFiltered(b)));
+                Scenario.FILTER_BUCKETS.forEach(b -> scenarios.add(Scenario.hybridFiltered(b)));
+                yield new ProfilePlan(
+                        profile,
+                        List.of(Tier.SMOKE),
+                        List.of(TargetMode.EMBEDDED, TargetMode.REMOTE),
+                        List.copyOf(scenarios),
+                        100,
+                        3);
+            }
             case CANONICAL ->
                 throw new UnsupportedOperationException(
                         "The canonical profile is not implemented yet; see plans/issues/B16-canonical-profile.md");

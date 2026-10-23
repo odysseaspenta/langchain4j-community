@@ -21,6 +21,26 @@ class ProfilePlanTest {
     }
 
     @Test
+    void should_plan_the_filtered_scenarios_on_the_smoke_tier_in_both_modes() {
+        ProfilePlan plan = ProfilePlan.of(Profile.FILTERED);
+
+        assertThat(plan.tiers()).containsExactly(Tier.SMOKE);
+        assertThat(plan.modes()).containsExactly(TargetMode.EMBEDDED, TargetMode.REMOTE);
+        assertThat(plan.scenarios())
+                .extracting(Scenario::name)
+                .containsExactly(
+                        "dense",
+                        "dense-filtered-1",
+                        "dense-filtered-10",
+                        "dense-filtered-50",
+                        "hybrid-filtered-1",
+                        "hybrid-filtered-10",
+                        "hybrid-filtered-50");
+        assertThat(plan.scenarios()).extracting(Scenario::bucketsBelow).containsExactly(null, 1, 10, 50, 1, 10, 50);
+        assertThat(plan.repetitions()).isEqualTo(3);
+    }
+
+    @Test
     void should_override_tiers_to_rerun_one_tier() {
         ProfilePlan plan = ProfilePlan.of(Profile.BASELINE).withTiers(List.of(Tier.STANDARD));
 

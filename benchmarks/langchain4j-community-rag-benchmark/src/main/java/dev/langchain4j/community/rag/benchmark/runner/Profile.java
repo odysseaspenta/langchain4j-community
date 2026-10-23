@@ -11,6 +11,12 @@ public enum Profile {
      * (store default efSearch) + {@code hybrid-asis}, three repetitions for noise bands. Run with a load time cap.
      */
     BASELINE,
+    /**
+     * The {@code filtered} scenario (B13, the "before" for S9): {@code dense} unfiltered for reference, then
+     * {@code dense} and {@code hybrid-asis} with {@code bucket < 1 | 10 | 50}; smoke tier (A5), embedded and remote,
+     * three repetitions.
+     */
+    FILTERED,
     /** Standard tier (full tier added by B22), embedded and remote, all canonical scenarios. */
     CANONICAL,
     /** {@link #CANONICAL} plus index grid, hybrid variants and optional mixed workload. */
