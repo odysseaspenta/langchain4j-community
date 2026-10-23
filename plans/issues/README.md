@@ -35,7 +35,7 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [S4](S4-per-query-efsearch.md) | Per-query `efSearch` | 4 Viability fixes | B10, S3 (remote part) | ◐ `e4df5e74`, local (efSearch, remote projection, fuse limit) |
 | [B11](B11-integrate-s1-s4-validate.md) | Integrate S1–S4, validate acceptance 3 | 4 Viability fixes | S1–S4, B09 | ✅ smoke before/after incl. S4 (A5: no `standard`) |
 | [B12](B12-lexical-scenario.md) | `lexical` scenario | 5 Canonical | B11 | ☐ |
-| [B13](B13-filtered-scenario.md) | `filtered` scenario | 5 Canonical | B11 | ☐ |
+| [B13](B13-filtered-scenario.md) | `filtered` scenario | 5 Canonical | B11 | ✅ `0c50043e` (smoke, A5; hybrid with store defaults until B19) |
 | [B14](B14-efsearch-sweep-concurrency.md) | efSearch sweep, concurrency, recall-vs-latency | 5 Canonical | B11 | ☐ |
 | [B15](B15-compare-report.md) | `compare` command (Markdown + SVG, noise bands, thresholds) | 5 Canonical | B07 | ☐ |
 | [S7](S7-expose-hybrid-options.md) | Expose hybrid / full-text options | 5 Canonical | B10 | ◐ `35f2debc`, local (measured-best defaults) |
@@ -48,7 +48,7 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [B17](B17-version-comparison-run.md) | Version comparison run + report | 6 Versions | B15, B16, S10 | ☐ |
 | [S5](S5-remove-scan-fallback.md) | Remove O(N) scan fallback at scale | 7 Extended | B10 | ☐ |
 | [S6](S6-expose-index-options.md) | Expose index options (quantization, similarity) | 7 Extended | B10 | ◐ `0676b5b7`, local (similarity, quantization) |
-| [S9](S9-server-side-filtering.md) | Server-side metadata filtering | 7 Extended | B13 | ☐ |
+| [S9](S9-server-side-filtering.md) | Server-side metadata filtering | 7 Extended | B13 | ◐ `b4122c8c`+`4d8aca81`, local (adaptive server-side filtering) |
 | [B18](B18-index-grid.md) | `index-grid` scenario | 7 Extended | S6, B16 | ☐ |
 | [B20](B20-extended-profile.md) | `extended` profile (standard tier) | 7 Extended | B16, B18, B19 | ☐ |
 | [B21](B21-mixed-workload.md) | `mixed` read/write scenario (optional) | 7 Extended | B16 | ☐ |
