@@ -47,7 +47,7 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [S12](S12-embedded-id-reuse.md) | Embedded: an id can never be used again (upsert / re-add fail); remote has no upsert | 4 Viability fixes | — | ◐ `f9e93e07`, local (upsert in both modes) |
 | [B17](B17-version-comparison-run.md) | Version comparison run + report | 6 Versions | B15, B16, S10 | ☐ |
 | [S5](S5-remove-scan-fallback.md) | Remove O(N) scan fallback at scale | 7 Extended | B10 | ☐ |
-| [S6](S6-expose-index-options.md) | Expose index options (quantization, similarity) | 7 Extended | B10 | ☐ |
+| [S6](S6-expose-index-options.md) | Expose index options (quantization, similarity) | 7 Extended | B10 | ◐ `0676b5b7`, local (similarity, quantization) |
 | [S9](S9-server-side-filtering.md) | Server-side metadata filtering | 7 Extended | B13 | ☐ |
 | [B18](B18-index-grid.md) | `index-grid` scenario | 7 Extended | S6, B16 | ☐ |
 | [B20](B20-extended-profile.md) | `extended` profile (standard tier) | 7 Extended | B16, B18, B19 | ☐ |
@@ -99,3 +99,6 @@ The store fixes target the LangChain4j ArcadeDB integration **running on ArcadeD
 5. **Machines (amended 2026-09-28, PRD §5.1 A2/A3):** reference machine lowered to ≥8 cores / ≥32 GB, so the 8-core / 46 GB box qualifies. While no reference machine is available, early work (B01–B08, B15, S-fixes) may run on a lower-spec development machine (PRD N2a), `smoke` only, results tagged `dev` and never used as baseline or comparison input.
 6. **Embedding cache portability (N1):** if embeddings are computed on one machine and copied, accuracy stays identical; recomputing on another CPU may differ in the last float bits. Treat the cache as a checksummed artefact and copy it rather than regenerate.
 7. Minor: `searchEmbedded` is `public` (`ArcadeDBEmbeddingStore.java:526`), not private like the other pointers in handoff §7; the 2-arg ANN call is at `:542` as the PRD says. Other line pointers verified at `7de83f5`.
+
+## PR preparation (before any upstream PR)
+- **Formatting:** `spotless:check` on the merged store module (2026-10-23) reports violations in `ArcadeDBEmbeddingStore.java`, `ArcadeDBEfSearchTestHelper.java`, `ArcadeDBEmbeddingStoreEmbeddedIT.java`, `ArcadeDBEmbeddingStoreIT.java`, `ArcadeDBUpsertTestHelper.java`. Spotless cannot run in the fix worktree (its git ratchet does not support worktrees), so format each stack branch in the main checkout: rebase the stack with `--exec` running `spotless:apply` and amending, then re-run the suite.

@@ -442,8 +442,8 @@ public final class ArcadeDbTarget implements BenchmarkTarget {
         description.put("dimension", settings.dimension());
         description.put("maxConnections", settings.maxConnections());
         description.put("beamWidth", settings.beamWidth());
-        description.put("quantization", "NONE (not configurable before S6)");
-        description.put("similarity", "COSINE (store default before S6)");
+        description.put("quantization", "NONE (store default)");
+        description.put("similarity", "COSINE (store default)");
         description.put("vectorSubIndexes", vectorSubIndexes);
         // The harness sets none of the store's ingestion or hybrid options: every run measures the store's defaults.
         description.put("storeOptions", "store defaults (batch size, hybrid fusion, full-text analyzer)");
