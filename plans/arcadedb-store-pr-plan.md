@@ -69,4 +69,4 @@ below are settled.
 3. **Benchmark reference** — numbers inline only, or also link to the fork's benchmark branch.
 4. **Hybrid default changes** — keep the measured-best defaults (decided for S7) or ship them opt-in to keep the PR
    free of behaviour changes for existing users.
-5. **Docs** — open the docs-site PR in the main LangChain4j repository at the same time or after this one is reviewed.
+5. ~~Docs~~ — **done 2026-10-24:** `odysseaspenta/langchain4j` branch `docs/arcadedb-store-options` (`cb3088cec`, one commit on upstream `main` `71d0dcf6d`, only `docs/docs/integrations/embedding-stores/arcadedb.md`), pushed. The owner opens the PR to `langchain4j/langchain4j` after #883 is merged.
