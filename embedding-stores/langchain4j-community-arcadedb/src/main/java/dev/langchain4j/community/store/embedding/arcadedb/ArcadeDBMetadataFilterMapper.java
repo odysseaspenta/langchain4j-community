@@ -81,8 +81,7 @@ class ArcadeDBMetadataFilterMapper {
         } else if (filter instanceof IsNotEqualTo f) {
             // NULL-safe: property absent means "not equal" is true
             return format(
-                    "(%s IS NULL OR %s)",
-                    formatKey(f.key()), mapComparison(f.key(), "!=", f.comparisonValue(), bind));
+                    "(%s IS NULL OR %s)", formatKey(f.key()), mapComparison(f.key(), "!=", f.comparisonValue(), bind));
         } else if (filter instanceof IsGreaterThan f) {
             return mapComparison(f.key(), ">", f.comparisonValue(), bind);
         } else if (filter instanceof IsGreaterThanOrEqualTo f) {
@@ -125,8 +124,8 @@ class ArcadeDBMetadataFilterMapper {
     }
 
     private String placeholders(Collection<?> values, Function<Object, String> bind) {
-        return "(" + values.stream().map(value -> bind.apply(toParameter(value))).collect(Collectors.joining(", "))
-                + ")";
+        return "("
+                + values.stream().map(value -> bind.apply(toParameter(value))).collect(Collectors.joining(", ")) + ")";
     }
 
     private Object toParameter(Object value) {

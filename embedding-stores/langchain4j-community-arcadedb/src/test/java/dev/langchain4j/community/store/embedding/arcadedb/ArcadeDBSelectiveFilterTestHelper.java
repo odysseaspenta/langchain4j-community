@@ -69,8 +69,8 @@ final class ArcadeDBSelectiveFilterTestHelper {
                         .maxResults(5)
                         .build())
                 .matches();
-        matches.forEach(m -> assertThat(m.embedded().metadata().getInteger("bucket"))
-                .isZero());
+        matches.forEach(
+                m -> assertThat(m.embedded().metadata().getInteger("bucket")).isZero());
         return matches.stream().map(EmbeddingMatch::embeddingId).collect(Collectors.toSet());
     }
 

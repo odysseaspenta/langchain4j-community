@@ -18,8 +18,8 @@ enum ArcadeDBVectorSimilarity {
         try {
             return valueOf(name.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException | NullPointerException e) {
-            throw new IllegalArgumentException("Unsupported similarity function '" + name
-                    + "'; use COSINE, EUCLIDEAN or DOT_PRODUCT");
+            throw new IllegalArgumentException(
+                    "Unsupported similarity function '" + name + "'; use COSINE, EUCLIDEAN or DOT_PRODUCT");
         }
     }
 

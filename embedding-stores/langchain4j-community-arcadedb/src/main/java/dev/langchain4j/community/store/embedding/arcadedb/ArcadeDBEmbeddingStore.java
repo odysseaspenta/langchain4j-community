@@ -354,7 +354,8 @@ public class ArcadeDBEmbeddingStore implements EmbeddingStore<TextSegment>, Clos
     private void addAllRemote(List<String> ids, List<Embedding> embeddings, List<TextSegment> embedded) {
         log.debug("Inserting {} embeddings into ArcadeDB (remote mode)", ids.size());
         // One request and one transaction per batch: a SQL script of parameterized DELETE + INSERT pairs (upsert by id,
-        // as in embedded mode; the id index keeps the DELETE cheap). Values are bound as parameters; inlined into the SQL
+        // as in embedded mode; the id index keeps the DELETE cheap). Values are bound as parameters; inlined into the
+        // SQL
         // text, a line break in a text or metadata value was a syntax error.
         for (int from = 0; from < ids.size(); from += remoteBatchSize) {
             int to = Math.min(from + remoteBatchSize, ids.size());
@@ -381,9 +382,17 @@ public class ArcadeDBEmbeddingStore implements EmbeddingStore<TextSegment>, Clos
             String id,
             Embedding embedding,
             TextSegment segment) {
-        script.append("DELETE FROM `").append(typeName).append("` WHERE `").append(ID_PROPERTY).append("` = :id");
+        script.append("DELETE FROM `")
+                .append(typeName)
+                .append("` WHERE `")
+                .append(ID_PROPERTY)
+                .append("` = :id");
         script.append(row).append(";\n");
-        script.append("INSERT INTO `").append(typeName).append("` SET `").append(ID_PROPERTY).append("` = :id");
+        script.append("INSERT INTO `")
+                .append(typeName)
+                .append("` SET `")
+                .append(ID_PROPERTY)
+                .append("` = :id");
         script.append(row);
         parameters.put("id" + row, id);
         script.append(", `").append(EMBEDDING_PROPERTY).append("` = :embedding").append(row);
@@ -463,10 +472,7 @@ public class ArcadeDBEmbeddingStore implements EmbeddingStore<TextSegment>, Clos
             // Only fetchCount rows cross the network; the beam (efSearch) is as wide as embedded search's.
             query = withoutNestedRecord(String.format(
                     "SELECT expand(`vector.neighbors`('%s', %s, %d, { efSearch: %d }))",
-                    indexName,
-                    vectorSql,
-                    fetchCount,
-                    remoteEfSearch(maxResults, fetchCount)));
+                    indexName, vectorSql, fetchCount, remoteEfSearch(maxResults, fetchCount)));
         }
 
         ResultSet resultSet;
@@ -893,7 +899,6 @@ public class ArcadeDBEmbeddingStore implements EmbeddingStore<TextSegment>, Clos
             if (vertexType.getPolymorphicIndexByProperties(EMBEDDED_ID) == null) {
                 schema.createTypeIndex(Schema.INDEX_TYPE.LSM_TREE, true, typeName, EMBEDDED_ID);
             }
-
         });
 
         // Create the full-text index on the text property (with the analyzer / BM25 settings); an existing one is kept.
@@ -1247,7 +1252,9 @@ public class ArcadeDBEmbeddingStore implements EmbeddingStore<TextSegment>, Clos
             }
             escaped.append(c);
         }
-        return LUCENE_OPERATOR.matcher(escaped).replaceAll(match -> match.group(1).toLowerCase(Locale.ROOT));
+        return LUCENE_OPERATOR
+                .matcher(escaped)
+                .replaceAll(match -> match.group(1).toLowerCase(Locale.ROOT));
     }
 
     /** The same request without the full-text query, i.e. a dense-only search. */

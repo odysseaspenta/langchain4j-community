@@ -62,7 +62,8 @@ final class ArcadeDBEfSearchTestHelper {
     }
 
     private static Set<String> exactTopK(List<float[]> vectors, List<String> ids, float[] query) {
-        List<Integer> order = new ArrayList<>(IntStream.range(0, vectors.size()).boxed().toList());
+        List<Integer> order =
+                new ArrayList<>(IntStream.range(0, vectors.size()).boxed().toList());
         order.sort(Comparator.comparingDouble(i -> -dot(vectors.get(i), query)));
         Set<String> top = new HashSet<>();
         for (int i = 0; i < K; i++) {

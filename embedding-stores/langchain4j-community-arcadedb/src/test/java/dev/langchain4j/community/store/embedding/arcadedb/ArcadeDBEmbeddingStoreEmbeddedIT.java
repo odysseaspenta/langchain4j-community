@@ -91,9 +91,13 @@ class ArcadeDBEmbeddingStoreEmbeddedIT extends EmbeddingStoreWithFilteringIT {
 
     @org.junit.jupiter.api.Test
     void should_search_hybrid_with_a_question_containing_lucene_syntax() {
-        Embedding embedding = EMBEDDING_MODEL.embed("the three-fifths compromise in the constitution").content();
+        Embedding embedding = EMBEDDING_MODEL
+                .embed("the three-fifths compromise in the constitution")
+                .content();
         String id = embeddingStore()
-                .add(embedding, TextSegment.from("The 3/5 compromise was stated in the constitution of the graph database"));
+                .add(
+                        embedding,
+                        TextSegment.from("The 3/5 compromise was stated in the constitution of the graph database"));
 
         List<EmbeddingMatch<TextSegment>> matches = embeddingStore()
                 .search(EmbeddingSearchRequest.builder()
@@ -173,12 +177,14 @@ class ArcadeDBEmbeddingStoreEmbeddedIT extends EmbeddingStoreWithFilteringIT {
     @org.junit.jupiter.api.Test
     void should_stem_full_text_with_the_default_english_analyzer_but_not_with_the_standard_one() {
         assertThat(fullTextMatches(null, "The dogs were running", "runs")).isEqualTo(1);
-        assertThat(fullTextMatches("org.apache.lucene.analysis.standard.StandardAnalyzer", "The dogs were running", "runs"))
+        assertThat(fullTextMatches(
+                        "org.apache.lucene.analysis.standard.StandardAnalyzer", "The dogs were running", "runs"))
                 .isZero();
     }
 
     private long fullTextMatches(String analyzer, String text, String query) {
-        String path = tempDir.resolve("analyzer-" + (analyzer == null ? "default" : "standard")).toString();
+        String path = tempDir.resolve("analyzer-" + (analyzer == null ? "default" : "standard"))
+                .toString();
         try (com.arcadedb.database.DatabaseFactory factory = new com.arcadedb.database.DatabaseFactory(path);
                 com.arcadedb.database.Database database = factory.create()) {
             ArcadeDBEmbeddingStore.EmbeddedBuilder builder =
@@ -284,8 +290,8 @@ class ArcadeDBEmbeddingStoreEmbeddedIT extends EmbeddingStoreWithFilteringIT {
 
     @org.junit.jupiter.api.Test
     void should_keep_similarity_and_quantization_when_removing_all() {
-        try (com.arcadedb.database.DatabaseFactory factory =
-                        new com.arcadedb.database.DatabaseFactory(tempDir.resolve("remove-all-options").toString());
+        try (com.arcadedb.database.DatabaseFactory factory = new com.arcadedb.database.DatabaseFactory(
+                        tempDir.resolve("remove-all-options").toString());
                 com.arcadedb.database.Database database = factory.create()) {
             ArcadeDBEmbeddingStore store = ArcadeDBEmbeddingStore.embeddedBuilder()
                     .database(database)
@@ -348,9 +354,10 @@ class ArcadeDBEmbeddingStoreEmbeddedIT extends EmbeddingStoreWithFilteringIT {
                 assertThat(store.search(EmbeddingSearchRequest.builder()
                                         .queryEmbedding(embedding)
                                         .query(text)
-                                        .filter(dev.langchain4j.store.embedding.filter.MetadataFilterBuilder.metadataKey(
-                                                        "bucket")
-                                                .isLessThan(1))
+                                        .filter(
+                                                dev.langchain4j.store.embedding.filter.MetadataFilterBuilder
+                                                        .metadataKey("bucket")
+                                                        .isLessThan(1))
                                         .maxResults(10)
                                         .build())
                                 .matches())
@@ -407,7 +414,8 @@ class ArcadeDBEmbeddingStoreEmbeddedIT extends EmbeddingStoreWithFilteringIT {
                 assertThat(matches).singleElement().satisfies(match -> {
                     assertThat(match.embeddingId()).isEqualTo(ids.get(n));
                     assertThat(match.embedded().text()).isEqualTo("batched text " + n);
-                    assertThat(match.embedded().metadata().getInteger("key" + (n % 4))).isEqualTo(n);
+                    assertThat(match.embedded().metadata().getInteger("key" + (n % 4)))
+                            .isEqualTo(n);
                 });
             }
         }

@@ -116,7 +116,8 @@ class ArcadeDBEmbeddingStoreIT extends EmbeddingStoreWithFilteringIT {
             }
             vectors.add(vector);
             ids.add(embeddingStore.add(
-                    Embedding.from(vector), TextSegment.from("record " + i, Metadata.from("group", i % 2 == 0 ? "even" : "odd"))));
+                    Embedding.from(vector),
+                    TextSegment.from("record " + i, Metadata.from("group", i % 2 == 0 ? "even" : "odd"))));
         }
         float[] query = vectors.get(37).clone();
         query[0] += 0.5f;
@@ -135,7 +136,9 @@ class ArcadeDBEmbeddingStoreIT extends EmbeddingStoreWithFilteringIT {
                         .build())
                 .matches();
 
-        assertThat(nearest).extracting(EmbeddingMatch::embeddingId).containsExactlyElementsOf(bruteForce(query, vectors, ids, i -> true));
+        assertThat(nearest)
+                .extracting(EmbeddingMatch::embeddingId)
+                .containsExactlyElementsOf(bruteForce(query, vectors, ids, i -> true));
         assertThat(nearestEven)
                 .extracting(EmbeddingMatch::embeddingId)
                 .containsExactlyElementsOf(bruteForce(query, vectors, ids, i -> i % 2 == 0));
@@ -147,8 +150,8 @@ class ArcadeDBEmbeddingStoreIT extends EmbeddingStoreWithFilteringIT {
         return IntStream.range(0, vectors.size())
                 .filter(include)
                 .boxed()
-                .sorted(Comparator.comparingDouble((Integer i) -> -CosineSimilarity.between(
-                        Embedding.from(query), Embedding.from(vectors.get(i)))))
+                .sorted(Comparator.comparingDouble((Integer i) ->
+                        -CosineSimilarity.between(Embedding.from(query), Embedding.from(vectors.get(i)))))
                 .limit(3)
                 .map(ids::get)
                 .toList();
@@ -217,7 +220,9 @@ class ArcadeDBEmbeddingStoreIT extends EmbeddingStoreWithFilteringIT {
     @org.junit.jupiter.api.Test
     void should_search_hybrid_with_a_question_containing_lucene_syntax() {
         clearStore();
-        Embedding embedding = embeddingModel.embed("the three-fifths compromise in the constitution").content();
+        Embedding embedding = embeddingModel
+                .embed("the three-fifths compromise in the constitution")
+                .content();
         String id = embeddingStore.add(
                 embedding, TextSegment.from("The 3/5 compromise was stated in the constitution of the graph database"));
 
@@ -470,7 +475,8 @@ class ArcadeDBEmbeddingStoreIT extends EmbeddingStoreWithFilteringIT {
             assertThat(matches).singleElement().satisfies(match -> {
                 assertThat(match.embeddingId()).isEqualTo(ids.get(n));
                 assertThat(match.embedded().text()).isEqualTo("batched text " + n);
-                assertThat(match.embedded().metadata().getInteger("key" + (n % 4))).isEqualTo(n);
+                assertThat(match.embedded().metadata().getInteger("key" + (n % 4)))
+                        .isEqualTo(n);
             });
         }
     }

@@ -60,6 +60,7 @@ final class ArcadeDBUpsertTestHelper {
                 .matches();
         assertThat(matches).extracting(EmbeddingMatch::embeddingId).doesNotHaveDuplicates();
         return matches.stream()
-                .collect(Collectors.toMap(EmbeddingMatch::embeddingId, match -> match.embedded().text()));
+                .collect(Collectors.toMap(
+                        EmbeddingMatch::embeddingId, match -> match.embedded().text()));
     }
 }
