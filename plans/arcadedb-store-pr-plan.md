@@ -1,6 +1,8 @@
 # ArcadeDB store: single upstream PR — plan
 
-Status: **draft for the owner's review** (2026-10-24). Nothing is pushed or opened upstream until the open decisions
+Status: **opened upstream** (2026-10-24): langchain4j/langchain4j-community#883 from `odysseaspenta:arcadedb-store-improvements` (`828f6b50`, 14 commits on upstream `main` `e814b6ab`). Dry run first on the fork: odysseaspenta/langchain4j-community#1, merged by the owner (`bcd3c869`); the fork's Actions did not run on it. Same title and description in both.
+
+Original status: draft for the owner's review (2026-10-24). Nothing is pushed or opened upstream until the open decisions
 below are settled.
 
 ## Shape
