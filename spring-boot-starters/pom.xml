@@ -4,7 +4,7 @@
     <parent>
         <groupId>dev.langchain4j</groupId>
         <artifactId>langchain4j-community</artifactId>
-        <version>1.21.0-beta31-SNAPSHOT</version>
+        <version>1.23.0-beta33-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -24,6 +24,7 @@
     </licenses>
 
     <modules>
+        <module>langchain4j-community-mcp-server-spring-boot-starter</module>
         <module>langchain4j-community-clickhouse-spring-boot-starter</module>
         <module>langchain4j-community-dashscope-spring-boot-starter</module>
         <module>langchain4j-community-qianfan-spring-boot-starter</module>
@@ -40,7 +41,7 @@
     </modules>
 
     <properties>
-        <spring-boot.version>3.5.13</spring-boot.version>
+        <spring-boot.version>3.5.16</spring-boot.version>
         <logback.version>1.5.32</logback.version>
     </properties>
 

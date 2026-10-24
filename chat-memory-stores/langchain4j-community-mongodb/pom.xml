@@ -5,7 +5,7 @@
     <parent>
         <groupId>dev.langchain4j</groupId>
         <artifactId>langchain4j-community</artifactId>
-        <version>1.21.0-beta31-SNAPSHOT</version>
+        <version>1.23.0-beta33-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -13,7 +13,7 @@
     <name>LangChain4j :: Community :: Integration :: MongoDB</name>
 
     <properties>
-        <mongodb-client.version>5.6.5</mongodb-client.version>
+        <mongodb-client.version>5.13.0</mongodb-client.version>
     </properties>
 
     <dependencies>

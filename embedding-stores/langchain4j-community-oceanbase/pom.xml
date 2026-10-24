@@ -5,7 +5,7 @@
     <parent>
         <groupId>dev.langchain4j</groupId>
         <artifactId>langchain4j-community</artifactId>
-        <version>1.21.0-beta31-SNAPSHOT</version>
+        <version>1.23.0-beta33-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -14,7 +14,7 @@
     <description>OceanBase Database Embedding Store</description>
 
     <properties>
-        <skipOceanBaseITs>false</skipOceanBaseITs>
+        <skipOceanBaseITs>${skipITs}</skipOceanBaseITs>
         <oceanbase-client.version>2.4.19</oceanbase-client.version>
     </properties>
 

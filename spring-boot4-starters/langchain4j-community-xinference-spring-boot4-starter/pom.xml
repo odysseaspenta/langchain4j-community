@@ -4,7 +4,7 @@
     <parent>
         <groupId>dev.langchain4j</groupId>
         <artifactId>langchain4j-community-spring-boot4-starters</artifactId>
-        <version>1.21.0-beta31-SNAPSHOT</version>
+        <version>1.23.0-beta33-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -21,7 +21,7 @@
     </licenses>
 
     <properties>
-        <skipXinferenceITs>false</skipXinferenceITs>
+        <skipXinferenceITs>${skipITs}</skipXinferenceITs>
     </properties>
 
     <dependencies>
@@ -96,7 +96,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
-                    <skipTests>${skipXinferenceITs}</skipTests>
+                    <skipITs>${skipXinferenceITs}</skipITs>
                 </configuration>
             </plugin>
         </plugins>
