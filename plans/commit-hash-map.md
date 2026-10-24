@@ -29,3 +29,24 @@ On 2026-10-02 the commit messages of `arcadedb-rag-benchmark` (from `7de83f54` o
 | `0d97bc77` | `f141fe42` | docs(benchmark): target ArcadeDB 26.9.1 for the store fixes; S10 outcome |
 
 The S10 fix branch `fix/arcadedb-version-compat` was amended the same way before it was ever pushed: `09d7bea3` → `269dc68c`.
+
+## Formatting rebuild (2026-10-24)
+
+Every fix-stack commit was rebuilt with its tree formatted by spotless (palantir-java-format): formatting only — whitespace, line breaks, import order, one `//` comment re-wrapped; verified token-identical per file. Messages, authors and author dates are unchanged. Plans and reports written before this date cite the old hashes. The originals are kept as `refs/backup/pre-format/<branch>` (local only).
+
+| Branch | Old | New | Commit |
+|---|---|---|---|
+| fix/arcadedb-version-compat | `269dc68c` | `05fa102a` | fix(arcadedb): keep an existing vector index when re-opening a remote store on ArcadeDB 26.8.1+ |
+| fix/arcadedb-remote-top-k | `48f97664` | `6435c1a7` | fix(arcadedb): return the nearest neighbours in remote dense search |
+| fix/arcadedb-remote-parameters | `eca574f6` | `4b620e99` | fix(arcadedb): bind values as parameters instead of inlining them into SQL |
+| fix/arcadedb-batched-remote-ingestion | `196917df` | `9695edd6` | feat(arcadedb): batch remote addAll into one request and transaction per batch |
+| fix/arcadedb-fulltext-query-sanitising | `c4b49d25` | `4cf3b060` | fix(arcadedb): escape Lucene syntax in hybrid queries and fall back to dense search |
+| fix/arcadedb-batched-embedded-ingestion | `7d70c9f0` | `296aed1a` | feat(arcadedb): insert embeddings in one transaction per batch in embedded mode |
+| chore/arcadedb-26.10.2 | `dc35cc79` | `21dc0e53` | chore(arcadedb): update ArcadeDB to 26.10.2 |
+| fix/arcadedb-embedded-id-reuse | `f9e93e07` | `3bcdbea2` | fix(arcadedb): make addAll an upsert by id in both modes |
+| feat/arcadedb-hybrid-options | `35f2debc` | `96cf533a` | feat(arcadedb): bounded full-text source, fusion options and full-text index settings for hybrid search |
+| fix/arcadedb-efsearch | `e4df5e74` | `059b6cde` | feat(arcadedb): efSearch option; leaner remote dense and hybrid queries |
+| feat/arcadedb-index-options | `0676b5b7` | `e095bcc9` | feat(arcadedb): similarity function and quantization options for the vector index |
+| (inside S9 branch) | `b4122c8c` | `6467419b` | feat(arcadedb): server-side metadata filtering with an adaptive strategy |
+| feat/arcadedb-server-side-filter | `4d8aca81` | `280e4557` | perf(arcadedb): cheaper allow-lists for filtered search |
+| fix/arcadedb-scan-fallback | `17e89ca8` | `8f10de33` | fix(arcadedb): drop the full-scan supplement for unreachable vectors |

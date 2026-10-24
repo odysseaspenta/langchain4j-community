@@ -101,4 +101,4 @@ The store fixes target the LangChain4j ArcadeDB integration **running on ArcadeD
 7. Minor: `searchEmbedded` is `public` (`ArcadeDBEmbeddingStore.java:526`), not private like the other pointers in handoff §7; the 2-arg ANN call is at `:542` as the PRD says. Other line pointers verified at `7de83f5`.
 
 ## PR preparation (before any upstream PR)
-- **Formatting:** `spotless:check` on the merged store module (2026-10-23) reports violations in `ArcadeDBEmbeddingStore.java`, `ArcadeDBEfSearchTestHelper.java`, `ArcadeDBEmbeddingStoreEmbeddedIT.java`, `ArcadeDBEmbeddingStoreIT.java`, `ArcadeDBUpsertTestHelper.java`. Spotless cannot run in the fix worktree (its git ratchet does not support worktrees), so format each stack branch in the main checkout: rebase the stack with `--exec` running `spotless:apply` and amending, then re-run the suite.
+- **Formatting:** ✅ done 2026-10-24 — every fix-stack commit rebuilt with spotless-formatted trees (formatting only, token-verified); `spotless:check` passes on each commit; old → new hashes in `plans/commit-hash-map.md`.
