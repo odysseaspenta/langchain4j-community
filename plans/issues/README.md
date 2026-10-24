@@ -46,7 +46,7 @@ Until all issues are complete, runs are limited to the **`smoke` (100k) and `sta
 | [S11](S11-remote-text-escaping.md) | Remote mode: bind values as parameters (line breaks break SQL) | 4 Viability fixes | — | ◐ `eca574f6`, local |
 | [S12](S12-embedded-id-reuse.md) | Embedded: an id can never be used again (upsert / re-add fail); remote has no upsert | 4 Viability fixes | — | ◐ `f9e93e07`, local (upsert in both modes) |
 | [B17](B17-version-comparison-run.md) | Version comparison run + report | 6 Versions | B15, B16, S10 | ☐ |
-| [S5](S5-remove-scan-fallback.md) | Remove O(N) scan fallback at scale | 7 Extended | B10 | ☐ |
+| [S5](S5-remove-scan-fallback.md) | Remove O(N) scan fallback at scale | 7 Extended | B10 | ◐ `17e89ca8`, local (supplement removed; ArcadeDB completes short results itself) |
 | [S6](S6-expose-index-options.md) | Expose index options (quantization, similarity) | 7 Extended | B10 | ◐ `0676b5b7`, local (similarity, quantization) |
 | [S9](S9-server-side-filtering.md) | Server-side metadata filtering | 7 Extended | B13 | ◐ `b4122c8c`+`4d8aca81`, local (adaptive server-side filtering) |
 | [B18](B18-index-grid.md) | `index-grid` scenario | 7 Extended | S6, B16 | ☐ |
