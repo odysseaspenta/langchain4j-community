@@ -94,8 +94,8 @@ Docker (4 CPUs, 8 GB heap), client on 4 other CPUs. Medians of three repetitions
 | Remote load | 576 docs/s | 2,784 docs/s |
 | Embedded dense: nDCG@10 / p50 | 0.852 / 3.3 ms | 0.853 / 3.3 ms |
 | Embedded hybrid: nDCG@10 / p50 | 0.794 / 544 ms | 0.855 / 20.4 ms |
-| Remote dense: nDCG@10 / p50 | every query timed out | 0.851 / 19.2 ms |
-| Remote hybrid: nDCG@10 / p50 | 0.794 / 477 ms | 0.853 / 34.7 ms |
+| Remote dense: nDCG@10 / p50 | every query timed out | 0.851 / 19.1 ms |
+| Remote hybrid: nDCG@10 / p50 | 0.793 / 477 ms | 0.853 / 34.7 ms |
 
 Filtered dense search (ANN recall@100 against the filtered exact neighbours / p50):
 
