@@ -63,8 +63,7 @@ below are settled.
 ## Open decisions (owner)
 
 1. ~~Attribution~~ — **decided 2026-10-24: no attribution to anybody** (no AI mention, no "Generated with" footer, no co-author lines).
-2. **PR title** — proposed: `feat(arcadedb): correctness, performance and configuration improvements for the ArcadeDB
-   embedding store`.
+2. ~~PR title~~ — **decided 2026-10-24:** `feat(arcadedb): correctness, performance and configuration improvements for the ArcadeDB embedding store`.
 3. **Benchmark reference** — numbers inline only, or also link to the fork's benchmark branch.
 4. **Hybrid default changes** — keep the measured-best defaults (decided for S7) or ship them opt-in to keep the PR
    free of behaviour changes for existing users.
