@@ -1,6 +1,6 @@
 # ArcadeDB store: follow-ups to the review of #883
 
-Status: **plan for the owner's review** (2026-11-02).
+Status: **PR opened** (2026-11-02): langchain4j/langchain4j-community#895 from `odysseaspenta:arcadedb-review-followups` (4 commits on `main` `0f4622ea`); description in `plans/arcadedb-pr883-followups-description.md`.
 
 langchain4j/langchain4j-community#883 was approved and merged by the maintainer (Martin7-1) on 2026-11-01
 (`0b7ee502ec`) with four non-blocking comments, all verified against the merged code. A fifth note (remote ITs) was
