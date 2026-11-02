@@ -71,3 +71,25 @@ withdrawn by the maintainer: CI ran them green.
 - Optionally a short reply on #883 linking the follow-up PR (the owner's decision).
 - The docs page (`docs/arcadedb-store-options` in the langchain4j fork) needs no change: keys are escaped, not
   restricted.
+
+## Implementation (2026-11-02) — branch `arcadedb-review-followups` (local, not pushed)
+
+On upstream `main` `0f4622ea`, one commit per comment, no attribution:
+
+| # | Commit | |
+|---|---|---|
+| 1 | `54df0f1b` | fix(arcadedb): escape metadata keys in SQL identifiers |
+| 2 | `e9c253e3` | fix(arcadedb): do not drop hybrid matches when minScore is set (option B) |
+| 3 | `846826e4` | perf(arcadedb): stop visiting neighbours once maxResults is reached |
+| 4 | `a0e95747` | perf(arcadedb): drop the logging scans in remote removeAll(Filter) |
+
+- New tests: `ArcadeDBMetadataFilterMapperTest`; key escaping (every filter strategy, both modes); hybrid `minScore`
+  (the maintainer's reproduction, and a case `maxResults × 2` would also fail), both modes. Both new IT sets failed
+  before their fix.
+- Verified: `spotless:check` on each commit; full suite on 26.10.2 — 513 tests, 0 failures; javadoc 0 errors.
+
+**Known, not fixed (owner's decision: only 26.10.2 must pass):** on ArcadeDB 26.9.1, `vector.neighbors` ignores an
+empty `filter` allow-list and returns unfiltered neighbours (26.10.2 returns none). With 26.9.1, a remote filtered
+search — and a filtered hybrid search in either mode — whose filter matches no record returns unfiltered results;
+the new key-escaping IT fails there for that reason (2 remote cases). Fix if needed later: re-apply the filter's WHERE
+to the returned rows.
