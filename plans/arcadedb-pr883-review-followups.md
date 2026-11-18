@@ -93,3 +93,18 @@ empty `filter` allow-list and returns unfiltered neighbours (26.10.2 returns non
 search — and a filtered hybrid search in either mode — whose filter matches no record returns unfiltered results;
 the new key-escaping IT fails there for that reason (2 remote cases). Fix if needed later: re-apply the filter's WHERE
 to the returned rows.
+
+## After the merge of #895 (2026-11-17/18)
+
+- **`typeName` escaping** (the optional follow-up raised when #895 was merged): branch `arcadedb-typename-escaping`,
+  commit `24909d01`, opened as #928, closing the summary issue #927. The type name goes through `quoteIdentifier`;
+  index names are passed as string literals escaped by the new `quoteString`; the embedded builder rejects a blank
+  type name. Six new ITs (both modes, every filter strategy) failed before the fix; full suite on 26.10.2: 529 tests,
+  0 failures, 4 skipped.
+- **ArcadeDB 26.11.1 evaluated, not adopted.** Same store code, smoke and filtered profiles on both versions
+  (`results/2026-11-17-arcadedb-26.1x.x-{smoke,filtered}`): same quality, embedded dense ~27 % and hybrid ~17 % faster,
+  but every remote filtered search ~20 ms slower. Probe (`results/2026-11-17-arcadedb-26.11.1-filter-subquery-regression`):
+  a server-side regression; the `vector.neighbors` `filter` subquery no longer gets the `/api/v1/query` fast scan.
+  Reported as ArcadeData/arcadedb#12537. The module stays on 26.10.2 until it is resolved.
+- Possible store-side workaround, not done: fetch the allow-list first and pass it as a parameter (fast on both
+  versions; ~12 ms + 3.5 ms at 1 % vs 32 ms).
